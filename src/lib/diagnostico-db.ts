@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { enviarDiagnosticoCRM } from "./diagnostico-crm";
 
 import type { Nivel, Respuestas } from "@/content/diagnostico";
 
@@ -30,17 +30,8 @@ export async function registrarEvento(input: {
   nivel?: Nivel | null;
   utm?: Utm;
 }) {
-  try {
-    await supabase.from("diagnostico_eventos").insert({
-      sesion: input.sesion,
-      evento: input.evento,
-      pregunta: input.pregunta ?? null,
-      nivel: input.nivel ?? null,
-      utm: input.utm ?? {},
-    });
-  } catch {
-    // La medición nunca debe interrumpir la experiencia de la persona.
-  }
+  // No se envían eventos de navegación: el CRM solo recibe prospectos autorizados.
+  void input;
 }
 
 export async function guardarDiagnostico(input: {
@@ -56,6 +47,7 @@ export async function guardarDiagnostico(input: {
   intencion: string | null;
   utm: Utm;
 }) {
-  const { error } = await supabase.from("diagnosticos").insert(input);
-  if (error) throw error;
+  if (!input.autoriza_contacto) throw new Error('Se requiere autorización de contacto.');
+  return enviarDiagnosticoCRM({ data: { ...input, autoriza_contacto: true } });
 }
+
