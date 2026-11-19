@@ -105,13 +105,16 @@ export async function importarTarifarios(conexion, tarifarios) {
 
 async function main() {
   const ruta = process.argv[2];
-  if (!ruta || !process.env.DATABASE_URL) {
-    console.error("Configura DATABASE_URL y pasa la ruta a dbMetaLife.db en el primer argumento.");
+  const connectionString = process.env.DATA_URL || process.env.DATABASE_URL;
+  if (!ruta || !connectionString) {
+    console.error(
+      "Configura DATA_URL o DATABASE_URL y pasa la ruta a dbMetaLife.db en el primer argumento.",
+    );
     process.exitCode = 1;
     return;
   }
   const tarifarios = leerTarifarios(resolve(ruta));
-  const conexion = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  const conexion = new pg.Client({ connectionString });
   try {
     await conexion.connect();
     await importarTarifarios(conexion, tarifarios);

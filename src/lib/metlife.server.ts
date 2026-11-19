@@ -99,9 +99,10 @@ export async function cotizarMetLife(solicitud: SolicitudMetLife): Promise<Respu
     return { error: "Selecciona un plazo disponible para el plan y la moneda." };
   }
 
-  if (!process.env.DATABASE_URL) return { error: NO_DISPONIBLE };
+  const connectionString = process.env.DATA_URL || process.env.DATABASE_URL;
+  if (!connectionString) return { error: NO_DISPONIBLE };
   pool ??= new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     max: 3,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 5_000,

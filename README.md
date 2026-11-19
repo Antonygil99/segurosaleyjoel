@@ -29,4 +29,4 @@ Para cargar las tarifas, extrae `datos/dbMetaLife.db` del JAR incluido en el ins
 node scripts/import-metlife-tariffs.mjs /ruta/a/dbMetaLife.db
 ```
 
-El importador crea el esquema `metlife_cotizador` y actualiza sus tarifas en una transacción. Ejecuta una vez por base de datos de destino. El servidor consulta la misma variable `DATABASE_URL` durante el cálculo. Mantén el archivo SQLite, sus tarifas y la cadena de conexión fuera de Git.
+El importador crea el esquema `metlife_cotizador` y actualiza sus tarifas en una transacción. Ejecuta una vez por base de datos de destino. El servidor consulta la misma variable de conexión durante el cálculo. Mantén el archivo SQLite, sus tarifas y la cadena de conexión fuera de Git.
