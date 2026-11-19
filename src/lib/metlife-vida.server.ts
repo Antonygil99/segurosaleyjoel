@@ -1,6 +1,7 @@
 import {
   COBERTURAS,
   PAGOS,
+  TIPO_CAMBIO_HORIZONTE,
   type Accidente,
   type CoberturaVida,
   type SolicitudMetLife,
@@ -67,6 +68,11 @@ export type CotizacionVida = {
     importeLiquidacion: number;
     ahorroPorPago: number;
     proteccionPorPago: number;
+    estudioFiscal?: {
+      tasaIlustrativa: number;
+      primaDeduciblePorPago: number;
+      ahorroFiscalPorPago: number;
+    };
   };
 };
 
@@ -401,6 +407,18 @@ export function calcularPrima(
       ahorroPorPago,
       proteccionPorPago: cotizacion.pago - ahorroPorPago,
     };
+    if (solicitud.horizonte?.regimen === "ahorro") {
+      // El estudio de Windows 7.6 ilustra el artículo 185 con una tasa fija.
+      const tasaIlustrativa = 0.3;
+      const tipoCambio =
+        moneda === "USD" ? (solicitud.horizonte.tipoCambio ?? TIPO_CAMBIO_HORIZONTE) : 1;
+      const primaDeduciblePorPago = Math.min(ahorroPorPago, 152000 / tipoCambio / frecuencia.pagos);
+      cotizacion.horizonte.estudioFiscal = {
+        tasaIlustrativa,
+        primaDeduciblePorPago,
+        ahorroFiscalPorPago: primaDeduciblePorPago * tasaIlustrativa,
+      };
+    }
   }
   if (solicitud.proyeccion) {
     if (!factores || (!factores.length && !(plan === 1 && plazo === 1))) {

@@ -4,7 +4,7 @@ import { Calculator, Printer } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { CentroShell } from "@/components/centro-shell";
-import { CotizadorSalud } from "@/components/metlife/cotizador-salud";
+import { CotizadorSalud, type CotizacionPrimordial } from "@/components/metlife/cotizador-salud";
 import { ResultadoVida } from "@/components/metlife/resultado-vida";
 import {
   COBERTURAS,
@@ -13,6 +13,7 @@ import {
   MONEDAS,
   PAGOS,
   PLANES,
+  TIPO_CAMBIO_HORIZONTE,
   etiquetaPlazo,
   monedasDe,
   plazosDe,
@@ -60,6 +61,7 @@ function CotizadorMetLife() {
   const [producto, setProducto] = useState<"vida" | "Primordial" | "MetPlus" | "MedicaLife">(
     "vida",
   );
+  const [primordial, setPrimordial] = useState<CotizacionPrimordial>();
   return (
     <CentroShell>
       <div className="container-aj max-w-6xl py-10 sm:py-16 print:py-4">
@@ -75,7 +77,10 @@ function CotizadorMetLife() {
           <select
             className={entrada}
             value={producto}
-            onChange={(event) => setProducto(event.target.value as typeof producto)}
+            onChange={(event) => {
+              setPrimordial(undefined);
+              setProducto(event.target.value as typeof producto);
+            }}
           >
             <option value="vida">Vida tradicional</option>
             <option value="MedicaLife">MédicaLife</option>
@@ -86,7 +91,16 @@ function CotizadorMetLife() {
         {producto === "vida" ? (
           <CotizadorVida />
         ) : (
-          <CotizadorSalud key={producto} producto={producto} />
+          <CotizadorSalud
+            key={producto}
+            producto={producto}
+            primordialCombinado={primordial}
+            combinarConMedica={(cotizacion) => {
+              setPrimordial(cotizacion);
+              setProducto("MedicaLife");
+            }}
+            cancelarCombinacion={() => setPrimordial(undefined)}
+          />
         )}
       </div>
     </CentroShell>
@@ -102,10 +116,13 @@ function CotizadorVida() {
   const [pendiente, setPendiente] = useState(false);
   const [accidente, setAccidente] = useState("");
   const [plazoPago, setPlazoPago] = useState<5 | 10 | 100>(100);
+  const [regimen, setRegimen] = useState<keyof typeof REGIMEN_HORIZONTE>("noDeduce");
   const [planesGuardados, setPlanesGuardados] = useState<CotizacionGuardada[]>([]);
   const [errorCombinacion, setErrorCombinacion] = useState("");
   const primera = planesGuardados[0]?.solicitud;
   const plazos = plazosDe({ plan, moneda });
+  const regimenes = regimenesHorizonte(moneda, plazo);
+  const regimenActivo = regimenes.includes(regimen) ? regimen : "noDeduce";
 
   function cambiarPlan(nuevo: SolicitudMetLife["plan"]) {
     const opciones = monedasDe(nuevo);
@@ -115,6 +132,7 @@ function CotizadorVida() {
     setPlazo(plazosDe({ plan: nuevo, moneda: divisa })[0]);
     setAccidente("");
     setPlazoPago(100);
+    setRegimen("noDeduce");
   }
 
   function guardarPlan() {
@@ -177,7 +195,12 @@ function CotizadorVida() {
       proyeccion: form.get("proyeccion") === "on",
       horizonte:
         plan === 12
-          ? { plazoPago, liquidacion: form.get("liquidacion"), regimen: form.get("regimen") }
+          ? {
+              plazoPago,
+              liquidacion: form.get("liquidacion"),
+              regimen: regimenActivo,
+              tipoCambio: monto("tipoCambio"),
+            }
           : undefined,
     });
 
@@ -296,13 +319,35 @@ function CotizadorVida() {
             {plan === 12 && (
               <label className="text-sm font-medium">
                 Opción fiscal
-                <select className={entrada} key={`${moneda}-${plazo}`} name="regimen">
-                  {regimenesHorizonte(moneda, plazo).map((value) => (
+                <select
+                  className={entrada}
+                  name="regimen"
+                  value={regimenActivo}
+                  onChange={(event) =>
+                    setRegimen(event.target.value as keyof typeof REGIMEN_HORIZONTE)
+                  }
+                >
+                  {regimenes.map((value) => (
                     <option key={value} value={value}>
                       {REGIMEN_HORIZONTE[value]}
                     </option>
                   ))}
                 </select>
+              </label>
+            )}
+            {plan === 12 && regimenActivo === "ahorro" && moneda === "USD" && (
+              <label className="text-sm font-medium">
+                Tipo de cambio (MXN por USD)
+                <input
+                  className={entrada}
+                  name="tipoCambio"
+                  type="number"
+                  min="15"
+                  max="999999"
+                  step="0.01"
+                  defaultValue={TIPO_CAMBIO_HORIZONTE}
+                  required
+                />
               </label>
             )}
             <label className="text-sm font-medium">

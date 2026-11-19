@@ -49,6 +49,8 @@ export const REGIMEN_HORIZONTE = {
   ppr: "Plan Personal de Retiro (PPR)",
 } as const;
 
+export const TIPO_CAMBIO_HORIZONTE = 20;
+
 export function regimenesHorizonte(moneda: keyof typeof MONEDAS, plazo: number) {
   const disponibles: (keyof typeof REGIMEN_HORIZONTE)[] = ["noDeduce"];
   if (plazo !== 50) disponibles.push("ahorro");
@@ -108,6 +110,7 @@ export const solicitudSchema = z.object({
       plazoPago: z.union([z.literal(5), z.literal(10), z.literal(100)]),
       liquidacion: z.enum(["unica", "vitalicia", "10", "15", "20", "30"]),
       regimen: z.enum(["noDeduce", "ahorro", "ppr"]).optional(),
+      tipoCambio: z.number().min(15).max(999999).optional(),
     })
     .optional(),
 });

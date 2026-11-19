@@ -6,6 +6,7 @@ import {
   MONEDAS,
   PLANES,
   REGIMEN_HORIZONTE,
+  TIPO_CAMBIO_HORIZONTE,
   etiquetaPlazo,
   type SolicitudMetLife,
 } from "@/lib/metlife";
@@ -25,6 +26,7 @@ export function ResultadoVida({
   const resumenId = useId();
   const proyeccionId = useId();
   const cotizacion = respuesta && "cotizacion" in respuesta ? respuesta.cotizacion : undefined;
+  const estudio = cotizacion?.horizonte?.estudioFiscal;
   const error = respuesta && "error" in respuesta ? respuesta.error : undefined;
   const dinero = new Intl.NumberFormat("es-MX", {
     style: "currency",
@@ -110,6 +112,40 @@ export function ResultadoVida({
                   </div>
                 ))}
               </dl>
+              {estudio && (
+                <div className="mt-5 break-inside-avoid border-t border-primary/20 pt-4">
+                  <h3 className="text-lg">Estudio fiscal de Horizonte</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Ejemplo ilustrativo de Windows 7.6 para la cuenta especial de ahorro (artículo
+                    185 de la LISR).
+                  </p>
+                  <dl className="mt-3 space-y-2 text-sm">
+                    {[
+                      ["Tasa ilustrativa de ISR", `${estudio.tasaIlustrativa * 100} %`],
+                      ...(solicitud.moneda === "USD"
+                        ? [
+                            [
+                              "Tipo de cambio (MXN por USD)",
+                              (
+                                solicitud.horizonte?.tipoCambio ?? TIPO_CAMBIO_HORIZONTE
+                              ).toLocaleString("es-MX"),
+                            ],
+                          ]
+                        : []),
+                      ["Prima deducible por pago", dinero.format(estudio.primaDeduciblePorPago)],
+                      [
+                        "Ahorro fiscal estimado por pago",
+                        dinero.format(Math.round(estudio.ahorroFiscalPorPago)),
+                      ],
+                    ].map(([etiqueta, valor]) => (
+                      <div key={etiqueta} className="flex justify-between gap-3">
+                        <dt>{etiqueta}</dt>
+                        <dd className="shrink-0 tabular-nums">{valor}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
               <p className="mt-4 text-sm text-muted-foreground">
                 Importes de referencia del tarifario 7.6, sujetos a confirmación de MetLife.
               </p>
