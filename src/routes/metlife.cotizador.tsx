@@ -4,6 +4,7 @@ import { Calculator, Printer } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { CentroShell } from "@/components/centro-shell";
+import { CotizadorEduca } from "@/components/metlife/cotizador-educa";
 import { CotizadorMet4U } from "@/components/metlife/cotizador-met4u";
 import { CotizadorSalud, type CotizacionPrimordial } from "@/components/metlife/cotizador-salud";
 import { ResultadoVida } from "@/components/metlife/resultado-vida";
@@ -60,7 +61,7 @@ function Monto({ etiqueta, name }: { etiqueta: string; name: string }) {
 
 function CotizadorMetLife() {
   const [producto, setProducto] = useState<
-    "vida" | "Primordial" | "MetPlus" | "MedicaLife" | "Met4U"
+    "vida" | "Primordial" | "MetPlus" | "MedicaLife" | "Met4U" | "EducaLife"
   >("vida");
   const [primordial, setPrimordial] = useState<CotizacionPrimordial>();
   return (
@@ -88,12 +89,15 @@ function CotizadorMetLife() {
             <option value="Primordial">Primordial</option>
             <option value="MetPlus">MetPlus</option>
             <option value="Met4U">Met4U</option>
+            <option value="EducaLife">EducaLife</option>
           </select>
         </label>
         {producto === "vida" ? (
           <CotizadorVida />
         ) : producto === "Met4U" ? (
           <CotizadorMet4U />
+        ) : producto === "EducaLife" ? (
+          <CotizadorEduca />
         ) : (
           <CotizadorSalud
             key={producto}

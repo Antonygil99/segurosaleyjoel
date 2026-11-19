@@ -10,6 +10,13 @@ export const COBERTURAS_MET4U = {
 
 export const SUMA_MINIMA_MET4U = { 10: 250000, 99: 200000 } as const;
 
+export const ESCENARIOS_MET4U = {
+  optimista: { etiqueta: "Optimista", fija: 0.065, variable: 0.12 },
+  promedio: { etiqueta: "Promedio", fija: 0.035, variable: 0.08 },
+  conservador: { etiqueta: "Conservador", fija: 0.02, variable: 0.02 },
+} as const;
+const escenario = z.enum(["optimista", "promedio", "conservador"]);
+
 const importe = z.number().int().min(1).max(2147483647);
 
 export const solicitudMet4U = z.object({
@@ -27,6 +34,9 @@ export const solicitudMet4U = z.object({
   }),
   ahorroAnual: importe.optional(),
   proyeccion: z.boolean().optional(),
+  escenarioFijo: escenario.optional(),
+  escenarioVariable: escenario.optional(),
+  porcentajeVariable: z.number().int().min(0).max(100).optional(),
 });
 
 export type FilaMet4U = {

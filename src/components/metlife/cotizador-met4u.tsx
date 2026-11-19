@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { PAGOS } from "@/lib/metlife";
 import {
   COBERTURAS_MET4U,
+  ESCENARIOS_MET4U,
   SUMA_MINIMA_MET4U,
   solicitudMet4U,
   type RespuestaMet4U,
@@ -32,6 +33,7 @@ export function CotizadorMet4U() {
   const [datosCotizados, setDatosCotizados] = useState<SolicitudMet4U>();
   const [pendiente, setPendiente] = useState(false);
   const [plazo, setPlazo] = useState<10 | 99>(10);
+  const [incluirProyeccion, setIncluirProyeccion] = useState(false);
 
   async function enviar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,7 +52,10 @@ export function CotizadorMet4U() {
       invalidez: monto("invalidez"),
       adicionales: { CAN: monto("CAN"), DIA: monto("DIA"), GRA: monto("GRA") },
       ahorroAnual: monto("ahorroAnual"),
-      proyeccion: form.get("proyeccion") === "on",
+      proyeccion: incluirProyeccion,
+      escenarioFijo: form.get("escenarioFijo") ?? undefined,
+      escenarioVariable: form.get("escenarioVariable") ?? undefined,
+      porcentajeVariable: monto("porcentajeVariable"),
     });
     if (!solicitud.success) {
       setResultado({ error: "Revisa la edad, el plazo y los importes capturados." });
@@ -173,8 +178,46 @@ export function CotizadorMet4U() {
             </label>
           </div>
           <label className="mt-5 flex items-center gap-2 text-sm font-medium">
-            <input name="proyeccion" type="checkbox" /> Incluir proyección de fondo fijo
+            <input
+              name="proyeccion"
+              type="checkbox"
+              checked={incluirProyeccion}
+              onChange={(event) => setIncluirProyeccion(event.target.checked)}
+            />{" "}
+            Incluir proyección de fondos
           </label>
+          {incluirProyeccion && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {(["Fijo", "Variable"] as const).map((fondo) => (
+                <label className="text-sm font-medium" key={fondo}>
+                  Escenario del fondo {fondo.toLowerCase()}
+                  <select className={entrada} name={`escenario${fondo}`} defaultValue="optimista">
+                    {Object.entries(ESCENARIOS_MET4U).map(([id, escenario]) => (
+                      <option key={id} value={id}>
+                        {escenario.etiqueta} ·{" "}
+                        {(escenario[fondo === "Fijo" ? "fija" : "variable"] * 100).toLocaleString(
+                          "es-MX",
+                        )}{" "}
+                        %
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              <label className="text-sm font-medium">
+                Aportación al fondo variable (%)
+                <input
+                  className={entrada}
+                  name="porcentajeVariable"
+                  type="number"
+                  min="0"
+                  max="100"
+                  defaultValue={0}
+                  required
+                />
+              </label>
+            </div>
+          )}
           <button type="submit" className="btn-primary mt-5">
             <Calculator className="size-4" aria-hidden="true" />{" "}
             {pendiente ? "Calculando…" : "Calcular prima"}
@@ -260,11 +303,26 @@ export function CotizadorMet4U() {
           )}
         </div>
       </section>
-      {proyeccion && (
+      {proyeccion && datosCotizados && (
         <section className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-8 lg:col-span-2 print:mt-6 print:border-0 print:p-0">
           <h2 className="text-2xl">Proyección de Met4U</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Fondo fijo con rendimiento ilustrativo de 6.5 % anual, sin retiros.
+            Rendimiento anual ilustrativo. Fondo fijo{" "}
+            {(
+              ESCENARIOS_MET4U[datosCotizados.escenarioFijo ?? "optimista"].fija * 100
+            ).toLocaleString("es-MX")}{" "}
+            %.
+            {!!datosCotizados.porcentajeVariable && (
+              <>
+                {" "}
+                Fondo variable{" "}
+                {(
+                  ESCENARIOS_MET4U[datosCotizados.escenarioVariable ?? "optimista"].variable * 100
+                ).toLocaleString("es-MX")}{" "}
+                % para el {datosCotizados.porcentajeVariable} % de la aportación.
+              </>
+            )}{" "}
+            Proyección sin retiros.
           </p>
           <div className="mt-4 overflow-x-auto print:overflow-visible">
             <table className="w-full border-collapse text-right text-sm tabular-nums print:text-[9px]">

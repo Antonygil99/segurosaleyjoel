@@ -1,5 +1,10 @@
 import { PAGOS } from "./metlife";
-import type { CoberturaMet4U, FilaMet4U, SolicitudMet4U } from "./metlife-met4u";
+import {
+  ESCENARIOS_MET4U,
+  type CoberturaMet4U,
+  type FilaMet4U,
+  type SolicitudMet4U,
+} from "./metlife-met4u";
 
 const coberturas = ["BAS", "CAN", "DIA", "GRA", "INV"] as const;
 const sinDecimalesExtra = (importe: number) => Math.round(importe * 100000) / 100000;
@@ -22,9 +27,14 @@ export function proyectarMet4U(
   const plazoSeguro = 65 - edad;
   const plazoPago = plazo === 10 ? 10 : plazoSeguro;
   const derecho = plazo === 10 ? 2000 : 1300;
-  const tasaMensual = Math.pow(1.065, 1 / 12) - 1;
+  const tasaFija = ESCENARIOS_MET4U[solicitud.escenarioFijo ?? "optimista"].fija;
+  const tasaVariable = ESCENARIOS_MET4U[solicitud.escenarioVariable ?? "optimista"].variable;
+  const tasaMensual = Math.pow(1 + tasaFija, 1 / 12) - 1;
+  const factorMensualVar = Math.pow(1 + tasaVariable, 1 / 12);
+  const parteVariable = (solicitud.porcentajeVariable ?? 0) / 100;
   let fondoBasico = 0;
-  let fondoAdicional = 0;
+  let adicionalFijo = 0;
+  let adicionalVariable = 0;
   let remanente = 0;
   const filas: FilaMet4U[] = [];
 
@@ -67,8 +77,12 @@ export function proyectarMet4U(
       const neto = prima - (cargosPrima + cargoFondo) - costoSeguro;
       const rendimiento = sinDecimalesExtra((neto + fondoBasico) * tasaMensual);
       fondoBasico = sinDecimalesExtra(neto + rendimiento + fondoBasico);
-      const adicionalAntes = fondoAdicional + aportacion;
-      fondoAdicional = adicionalAntes + adicionalAntes * tasaMensual;
+      const aportacionFija = aportacion * (1 - parteVariable);
+      const aportacionVariable = aportacion * parteVariable;
+      const adicionalAntes = adicionalFijo + aportacionFija;
+      adicionalFijo = adicionalAntes + adicionalAntes * tasaMensual;
+      adicionalVariable = (adicionalVariable + aportacionVariable) * factorMensualVar;
+      const fondoAdicional = adicionalFijo + adicionalVariable;
       const castigo = anio < 10 ? (perfil.cargos[anio] ?? 0) : 0;
       const rescate = sinDecimalesExtra(
         fondoBasico + fondoAdicional - sinDecimalesExtra(fondoBasico * castigo),
@@ -85,7 +99,7 @@ export function proyectarMet4U(
         anio,
         mes,
         edad: edadActual,
-        aportacion: prima + aportacion,
+        aportacion: prima + aportacionFija + aportacionVariable,
         fondoBasico,
         fondoBasicoRemanente: remanente,
         fondoAdicional,
