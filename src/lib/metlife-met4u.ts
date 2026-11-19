@@ -18,6 +18,7 @@ export const ESCENARIOS_MET4U = {
 const escenario = z.enum(["optimista", "promedio", "conservador"]);
 
 const importe = z.number().int().min(1).max(2147483647);
+const anioRetiro = z.number().int().min(10).max(47);
 
 export const solicitudMet4U = z.object({
   plazo: z.union([z.literal(10), z.literal(99)]),
@@ -37,6 +38,11 @@ export const solicitudMet4U = z.object({
   escenarioFijo: escenario.optional(),
   escenarioVariable: escenario.optional(),
   porcentajeVariable: z.number().int().min(0).max(100).optional(),
+  retiro: z.object({ monto: importe, desde: anioRetiro, hasta: anioRetiro }).optional(),
+  metas: z
+    .array(z.object({ anio: anioRetiro, monto: importe }))
+    .max(38)
+    .optional(),
 });
 
 export type FilaMet4U = {
@@ -44,6 +50,7 @@ export type FilaMet4U = {
   mes: number;
   edad: number;
   aportacion: number;
+  retiroSolicitado: number;
   fondoBasico: number;
   fondoBasicoRemanente: number;
   fondoAdicional: number;

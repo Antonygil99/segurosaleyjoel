@@ -21,7 +21,8 @@ export function proyectarMet4U(
   tarifas: Record<CoberturaMet4U, number>,
   perfil: PerfilProyeccionMet4U,
 ): FilaMet4U[] | undefined {
-  const { edad, plazo, frecuencia, ahorroAnual = 0 } = solicitud;
+  const { edad, plazo, frecuencia, ahorroAnual = 0, retiro, metas = [] } = solicitud;
+  const metasPorAnio = new Map(metas.map(({ anio, monto }) => [anio, monto]));
   const pagos = PAGOS[frecuencia].pagos;
   const factorPago = frecuencia === "mensual" ? 0.0833333333333333 : 1 / pagos;
   const plazoSeguro = 65 - edad;
@@ -79,10 +80,39 @@ export function proyectarMet4U(
       fondoBasico = sinDecimalesExtra(neto + rendimiento + fondoBasico);
       const aportacionFija = aportacion * (1 - parteVariable);
       const aportacionVariable = aportacion * parteVariable;
-      const adicionalAntes = adicionalFijo + aportacionFija;
-      adicionalFijo = adicionalAntes + adicionalAntes * tasaMensual;
-      adicionalVariable = (adicionalVariable + aportacionVariable) * factorMensualVar;
+      const retiroProgramado =
+        retiro && anio >= retiro.desde && anio <= retiro.hasta ? retiro.monto : 0;
+      const retiroSolicitado = mes === 12 ? retiroProgramado + (metasPorAnio.get(anio) ?? 0) : 0;
+      const adicionalAnterior = adicionalFijo + adicionalVariable;
+      const interesFijo = (adicionalFijo + aportacionFija) * tasaMensual;
+      const interesVariable = (adicionalVariable + aportacionVariable) * (factorMensualVar - 1);
+      const disponibleFijo = adicionalFijo + aportacionFija + interesFijo;
+      const faltanteFijo = Math.max(
+        0,
+        sinDecimalesExtra(retiroSolicitado - interesFijo - adicionalFijo - aportacionFija),
+      );
+      adicionalFijo = disponibleFijo - Math.min(disponibleFijo, retiroSolicitado);
+      adicionalVariable = Math.max(
+        0,
+        (adicionalVariable + aportacionVariable) * factorMensualVar - faltanteFijo,
+      );
       const fondoAdicional = adicionalFijo + adicionalVariable;
+      // El reporte de Windows conserva el saldo básico y el saldo remanente por separado.
+      const retiroMaximoAdicional =
+        adicionalAnterior -
+          retiroSolicitado +
+          interesVariable +
+          aportacionFija +
+          aportacionVariable >=
+        0
+          ? retiroSolicitado
+          : adicionalAnterior + fondoAdicional + interesVariable;
+      const faltanteAdicional = sinDecimalesExtra(retiroSolicitado - retiroMaximoAdicional);
+      const retiroBasico = sinDecimalesExtra(
+        fondoAdicional <= 0
+          ? retiroSolicitado - sinDecimalesExtra(retiroMaximoAdicional)
+          : Math.max(0, Math.min(fondoBasico * 0.95, faltanteAdicional)),
+      );
       const castigo = anio < 10 ? (perfil.cargos[anio] ?? 0) : 0;
       const rescate = sinDecimalesExtra(
         fondoBasico + fondoAdicional - sinDecimalesExtra(fondoBasico * castigo),
@@ -93,13 +123,16 @@ export function proyectarMet4U(
         // Windows lleva un saldo remanente distinto para calcular los cargos del mes siguiente.
         const interesRemanente = Math.max(0, (neto + remanente) * tasaMensual);
         const saldo = neto + interesRemanente + remanente;
-        remanente = sinDecimalesExtra(saldo < 0 ? saldo - saldo * 0.95 : saldo);
+        remanente = sinDecimalesExtra(
+          saldo - retiroBasico < 0 ? saldo - saldo * 0.95 : saldo - retiroBasico,
+        );
       }
       filas.push({
         anio,
         mes,
         edad: edadActual,
         aportacion: prima + aportacionFija + aportacionVariable,
+        retiroSolicitado,
         fondoBasico,
         fondoBasicoRemanente: remanente,
         fondoAdicional,

@@ -123,6 +123,22 @@ function calcularMet4U(
 }
 
 export async function cotizarMet4U(solicitud: SolicitudMet4U): Promise<RespuestaMet4U> {
+  const horizonte = 65 - solicitud.edad;
+  const { retiro, metas = [] } = solicitud;
+  if (retiro && (retiro.desde > retiro.hasta || retiro.hasta > horizonte)) {
+    return {
+      error: `El retiro debe comenzar en el año 10 o después y terminar a más tardar en el año ${horizonte}.`,
+    };
+  }
+  if (
+    metas.some(({ anio }) => anio > horizonte) ||
+    new Set(metas.map(({ anio }) => anio)).size !== metas.length
+  ) {
+    return { error: `Captura una sola meta por año, del año 10 al ${horizonte}.` };
+  }
+  if (!solicitud.proyeccion && (retiro || metas.length)) {
+    return { error: "Incluye la proyección para calcular los retiros y las metas." };
+  }
   const conexion = obtenerConexionMetLife();
   if (!conexion) return { error: SIN_TARIFA };
   try {

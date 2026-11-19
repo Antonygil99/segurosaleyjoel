@@ -31,12 +31,18 @@ Met4U permite cotizar la prima inicial para 10 años o hasta los 65, con invalid
 node scripts/import-met4u-tariffs.mjs /ruta/a/Met4U.db
 ```
 
-La proyección de Met4U usa los costos mensuales de la versión 7.6 y muestra el cierre de cada año hasta los 65. Admite los escenarios optimista, promedio y conservador para fondos fijos y variables, con reparto de la aportación anual programada y sin retiros.
+La proyección de Met4U usa los costos mensuales de la versión 7.6 y muestra el cierre de cada año hasta los 65. Admite los escenarios optimista, promedio y conservador para fondos fijos y variables, el reparto de aportaciones, retiros anuales programados y metas de retiro por año.
 
 EducaLife calcula primas en pesos y dólares, con titular, menor, cónyuge opcional, dotal y mini dotales. Muestra primas por cobertura y valores de rescate por año. Para cargar sus tarifas y factores mediante `DATA_URL`, ejecuta:
 
 ```sh
 node scripts/import-educalife-tariffs.mjs /ruta/a/dbMetaLife.db
+```
+
+FlexiLife Inversión calcula la prima en MXN, el rescate y el fondo de ahorro para plazos de 10 y 20 años. Admite cuentas en pesos o dólares y aportaciones iniciales, mensuales, trimestrales y anuales. Para cargar sus tablas mediante `DATA_URL`, ejecuta:
+
+```sh
+node scripts/import-flexilife-tariffs.mjs /ruta/a/dbMetaLife.db
 ```
 
 Para cargar tarifas y valores garantizados, extrae estas bases SQLite del directorio `datos/` del JAR y guárdalas juntas:
@@ -53,4 +59,4 @@ node scripts/import-metlife-tariffs.mjs /ruta/a/dbMetaLife.db
 
 El importador actualiza los tarifarios de Vida, valores garantizados y tarifas de Salud en una transacción dentro del esquema `metlife_cotizador`. Mantén los archivos SQLite, sus tarifas y la cadena de conexión fuera de Git.
 
-Quedan pendientes MetaLife y su reproyección, FlexiLife, metas y retiros de Met4U, valores saldados y prorrogados de EducaLife, las combinaciones con MetaLife y los informes específicos del software de escritorio.
+Quedan pendientes MetaLife y su reproyección, FlexiLife Sueños, aportaciones extraordinarias y opciones fiscales de Met4U, valores saldados y prorrogados de EducaLife, las combinaciones con MetaLife y los informes completos del escritorio.

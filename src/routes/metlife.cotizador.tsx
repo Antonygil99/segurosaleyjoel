@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 
 import { CentroShell } from "@/components/centro-shell";
 import { CotizadorEduca } from "@/components/metlife/cotizador-educa";
+import { CotizadorFlexi } from "@/components/metlife/cotizador-flexi";
 import { CotizadorMet4U } from "@/components/metlife/cotizador-met4u";
 import { CotizadorSalud, type CotizacionPrimordial } from "@/components/metlife/cotizador-salud";
 import { ResultadoVida } from "@/components/metlife/resultado-vida";
@@ -61,7 +62,7 @@ function Monto({ etiqueta, name }: { etiqueta: string; name: string }) {
 
 function CotizadorMetLife() {
   const [producto, setProducto] = useState<
-    "vida" | "Primordial" | "MetPlus" | "MedicaLife" | "Met4U" | "EducaLife"
+    "vida" | "Primordial" | "MetPlus" | "MedicaLife" | "Met4U" | "EducaLife" | "FlexiLife"
   >("vida");
   const [primordial, setPrimordial] = useState<CotizacionPrimordial>();
   return (
@@ -90,6 +91,7 @@ function CotizadorMetLife() {
             <option value="MetPlus">MetPlus</option>
             <option value="Met4U">Met4U</option>
             <option value="EducaLife">EducaLife</option>
+            <option value="FlexiLife">FlexiLife Inversión</option>
           </select>
         </label>
         {producto === "vida" ? (
@@ -98,6 +100,8 @@ function CotizadorMetLife() {
           <CotizadorMet4U />
         ) : producto === "EducaLife" ? (
           <CotizadorEduca />
+        ) : producto === "FlexiLife" ? (
+          <CotizadorFlexi />
         ) : (
           <CotizadorSalud
             key={producto}

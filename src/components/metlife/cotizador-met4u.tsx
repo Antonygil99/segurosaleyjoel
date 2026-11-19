@@ -34,6 +34,8 @@ export function CotizadorMet4U() {
   const [pendiente, setPendiente] = useState(false);
   const [plazo, setPlazo] = useState<10 | 99>(10);
   const [incluirProyeccion, setIncluirProyeccion] = useState(false);
+  const [incluirRetiro, setIncluirRetiro] = useState(false);
+  const [metas, setMetas] = useState(0);
 
   async function enviar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,6 +58,20 @@ export function CotizadorMet4U() {
       escenarioFijo: form.get("escenarioFijo") ?? undefined,
       escenarioVariable: form.get("escenarioVariable") ?? undefined,
       porcentajeVariable: monto("porcentajeVariable"),
+      retiro:
+        incluirProyeccion && incluirRetiro
+          ? {
+              monto: monto("retiroMonto"),
+              desde: monto("retiroDesde"),
+              hasta: monto("retiroHasta"),
+            }
+          : undefined,
+      metas: incluirProyeccion
+        ? Array.from({ length: metas }, (_, indice) => ({
+            anio: monto(`metaAnio-${indice}`),
+            monto: monto(`metaMonto-${indice}`),
+          }))
+        : undefined,
     });
     if (!solicitud.success) {
       setResultado({ error: "Revisa la edad, el plazo y los importes capturados." });
@@ -75,6 +91,7 @@ export function CotizadorMet4U() {
 
   const resumen = resultado && !("error" in resultado) ? resultado : undefined;
   const proyeccion = resumen?.proyeccion;
+  const mostrarRetiros = Boolean(datosCotizados?.retiro || datosCotizados?.metas?.length);
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[1.2fr_1fr] print:block">
       <form
@@ -218,6 +235,108 @@ export function CotizadorMet4U() {
               </label>
             </div>
           )}
+          {incluirProyeccion && (
+            <fieldset className="mt-5 space-y-3 rounded-lg border border-border p-3">
+              <legend className="px-1 text-sm font-semibold">Retiros y metas</legend>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  name="programarRetiro"
+                  type="checkbox"
+                  checked={incluirRetiro}
+                  onChange={(event) => setIncluirRetiro(event.target.checked)}
+                />{" "}
+                Programar retiro anual
+              </label>
+              {incluirRetiro && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="text-sm">
+                    Importe anual (MXN)
+                    <input
+                      className={entrada}
+                      name="retiroMonto"
+                      type="number"
+                      min="1"
+                      max="2147483647"
+                      required
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Desde el año
+                    <input
+                      className={entrada}
+                      name="retiroDesde"
+                      type="number"
+                      min="10"
+                      max="47"
+                      required
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Hasta el año
+                    <input
+                      className={entrada}
+                      name="retiroHasta"
+                      type="number"
+                      min="10"
+                      max="47"
+                      required
+                    />
+                  </label>
+                </div>
+              )}
+              {Array.from({ length: metas }, (_, indice) => (
+                <div className="grid gap-3 sm:grid-cols-2" key={indice}>
+                  <label className="text-sm">
+                    Año de la meta {indice + 1}
+                    <input
+                      className={entrada}
+                      name={`metaAnio-${indice}`}
+                      type="number"
+                      min="10"
+                      max="47"
+                      required
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Importe de la meta {indice + 1} (MXN)
+                    <input
+                      className={entrada}
+                      name={`metaMonto-${indice}`}
+                      type="number"
+                      min="1"
+                      max="2147483647"
+                      required
+                    />
+                  </label>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="btn-outline"
+                  disabled={metas >= 38}
+                  onClick={() => {
+                    setMetas((n) => n + 1);
+                    setResultado(undefined);
+                  }}
+                >
+                  Agregar meta
+                </button>
+                {metas > 0 && (
+                  <button
+                    type="button"
+                    className="btn-outline"
+                    onClick={() => {
+                      setMetas((n) => n - 1);
+                      setResultado(undefined);
+                    }}
+                  >
+                    Quitar última meta
+                  </button>
+                )}
+              </div>
+            </fieldset>
+          )}
           <button type="submit" className="btn-primary mt-5">
             <Calculator className="size-4" aria-hidden="true" />{" "}
             {pendiente ? "Calculando…" : "Calcular prima"}
@@ -322,7 +441,9 @@ export function CotizadorMet4U() {
                 % para el {datosCotizados.porcentajeVariable} % de la aportación.
               </>
             )}{" "}
-            Proyección sin retiros.
+            {mostrarRetiros
+              ? "Los retiros solicitados se proyectan al cierre del año."
+              : "Proyección sin retiros."}
           </p>
           <div className="mt-4 overflow-x-auto print:overflow-visible">
             <table className="w-full border-collapse text-right text-sm tabular-nums print:text-[9px]">
@@ -331,6 +452,7 @@ export function CotizadorMet4U() {
                   {[
                     "Año",
                     "Aportación anual",
+                    ...(mostrarRetiros ? ["Retiro solicitado"] : []),
                     "Fondo básico",
                     "Fondo adicional",
                     "Valor de rescate",
@@ -359,6 +481,7 @@ export function CotizadorMet4U() {
                         </th>
                         {[
                           total,
+                          ...(mostrarRetiros ? [fila.retiroSolicitado] : []),
                           fila.fondoBasicoRemanente,
                           fila.fondoAdicional,
                           fila.rescateReporte,
