@@ -21,12 +21,20 @@ https://github.com/Antonygil99/segurosaleyjoel
 
 ## Cotizador MetLife
 
-La ruta `/metlife/cotizador` calcula la cobertura básica de TempoLife, TempoLife Grandes Sumas y TempoLife Preferente en MXN y USD. Usa tasas de la versión 7.6, cargos fijos y recargos por frecuencia. Las coberturas adicionales y la proyección del instalador quedan pendientes.
+La ruta `/metlife/cotizador` utiliza las tablas de la versión 7.6. Incluye Vida tradicional (TempoLife, TempoLife Grandes Sumas, TempoLife Preferente, TotaLife, PerfectLife y Horizonte con pago hasta edad alcanzada), MédicaLife, Primordial Familiar y MetPlus. La vista de resultados admite impresión o guardado como PDF desde el navegador.
 
-Para cargar las tarifas, extrae `datos/dbMetaLife.db` del JAR incluido en el instalador. Con Node.js 22 y `DATABASE_URL` disponible en el entorno de la base de datos de destino, ejecuta:
+Para cargar tarifas y valores garantizados, extrae estas bases SQLite del directorio `datos/` del JAR y guárdalas juntas:
+
+- `dbMetaLife.db`
+- `MedicaLifeNN.db` y `MedicaLifeNNcampa.db`
+- `MedicaLifeRR.db`, `MedicaLifeRRant.db`, `MedicaLifeRRant2.db` y `MedicaLifeRRant3.db`
+
+Con Node.js 22 o superior y `DATA_URL` disponible en el entorno, ejecuta:
 
 ```sh
 node scripts/import-metlife-tariffs.mjs /ruta/a/dbMetaLife.db
 ```
 
-El importador crea el esquema `metlife_cotizador` y actualiza sus tarifas en una transacción. Ejecuta una vez por base de datos de destino. El servidor consulta la misma variable de conexión durante el cálculo. Mantén el archivo SQLite, sus tarifas y la cadena de conexión fuera de Git.
+El importador actualiza los tarifarios de Vida, valores garantizados y tarifas de Salud en una transacción dentro del esquema `metlife_cotizador`. Mantén los archivos SQLite, sus tarifas y la cadena de conexión fuera de Git.
+
+Quedan pendientes MetaLife, EducaLife, Met4U, FlexiLife, las modalidades adicionales de Horizonte, las combinaciones de planes y los informes específicos del software de escritorio.
