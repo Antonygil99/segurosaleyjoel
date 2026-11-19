@@ -18,3 +18,15 @@ Para compilar: `npm run build`.
 https://github.com/Antonygil99/segurosaleyjoel
 
 
+
+## Cotizador MetLife
+
+La ruta `/metlife/cotizador` calcula la cobertura básica de TempoLife, TempoLife Grandes Sumas y TempoLife Preferente en MXN y USD. Usa tasas de la versión 7.6, cargos fijos y recargos por frecuencia. Las coberturas adicionales y la proyección del instalador quedan pendientes.
+
+Para cargar las tarifas, extrae `datos/dbMetaLife.db` del JAR incluido en el instalador. Con Node.js 22 y `DATABASE_URL` disponible en el entorno de la base de datos de destino, ejecuta:
+
+```sh
+node scripts/import-metlife-tariffs.mjs /ruta/a/dbMetaLife.db
+```
+
+El importador crea el esquema `metlife_cotizador` y actualiza sus tarifas en una transacción. Ejecuta una vez por base de datos de destino. El servidor consulta la misma variable `DATABASE_URL` durante el cálculo. Mantén el archivo SQLite, sus tarifas y la cadena de conexión fuera de Git.

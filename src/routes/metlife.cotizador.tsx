@@ -1,94 +1,275 @@
+import { createServerFn } from "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
-import { HeartPulse, LockKeyhole, MessageCircle } from "lucide-react";
+import { Calculator, Printer } from "lucide-react";
+import { useState, type FormEvent } from "react";
 
 import { CentroShell } from "@/components/centro-shell";
-import { WA_PRIMARY } from "@/lib/site";
+import {
+  PAGOS,
+  PLANES,
+  etiquetaPlazo,
+  plazosDe,
+  solicitudSchema,
+  type SolicitudMetLife,
+} from "@/lib/metlife";
+import type { RespuestaCotizacion } from "@/lib/metlife.server";
 
-const PORTAL_METLIFE = "https://agentes.metlife.mx/";
-const INFO_METLIFE = "https://www.metlife.com.mx/portal-de-agentes/";
-const CONTACTO_AJ = `${WA_PRIMARY}?text=${encodeURIComponent(
-  "Hola, me gustaría recibir asesoría para cotizar un seguro con MetLife.",
-)}`;
+const calcular = createServerFn({ method: "POST" })
+  .inputValidator((entrada: unknown) => solicitudSchema.parse(entrada))
+  .handler(async ({ data }) => {
+    const { cotizarMetLife } = await import("@/lib/metlife.server");
+    return cotizarMetLife(data);
+  });
 
 export const Route = createFileRoute("/metlife/cotizador")({
   head: () => ({
     meta: [
-      { title: "Cotizaciones MetLife | AJ Consultoría" },
-      {
-        name: "description",
-        content: "Accede al Portal de Agentes de MetLife o solicita asesoría a AJ Consultoría.",
-      },
+      { title: "Cotizador MetLife | AJ Consultoría" },
+      { name: "description", content: "Calcula la prima básica de los planes TempoLife." },
     ],
   }),
   component: CotizadorMetLife,
 });
 
+const entrada =
+  "mt-1.5 w-full rounded-lg border border-input bg-card px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-ring";
+
 function CotizadorMetLife() {
+  const [plan, setPlan] = useState<SolicitudMetLife["plan"]>(1);
+  const [moneda, setMoneda] = useState<SolicitudMetLife["moneda"]>("MXN");
+  const [plazo, setPlazo] = useState(10);
+  const [respuesta, setRespuesta] = useState<RespuestaCotizacion>();
+  const [pendiente, setPendiente] = useState(false);
+  const [frecuencia, setFrecuencia] = useState<SolicitudMetLife["frecuencia"]>("anual");
+
+  const plazos = plazosDe({ plan, moneda });
+  const plazoActivo = plazos.includes(plazo) ? plazo : plazos[0];
+  const dinero = new Intl.NumberFormat("es-MX", { style: "currency", currency: moneda });
+  const cotizacion = respuesta && "cotizacion" in respuesta ? respuesta.cotizacion : undefined;
+  const error = respuesta && "error" in respuesta ? respuesta.error : undefined;
+
+  async function enviar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const solicitud = solicitudSchema.safeParse({
+      plan,
+      moneda,
+      plazo: plazoActivo,
+      edad: Number(form.get("edad")),
+      sexo: form.get("sexo"),
+      fuma: form.get("fuma"),
+      suma: Number(form.get("suma")),
+      frecuencia,
+    });
+
+    if (!solicitud.success) {
+      setRespuesta({
+        error: "Revisa la edad, la suma asegurada y los demás datos de la solicitud.",
+      });
+      return;
+    }
+    setRespuesta(undefined);
+    setPendiente(true);
+    try {
+      setRespuesta(await calcular({ data: solicitud.data }));
+    } catch {
+      setRespuesta({ error: "No se pudo consultar el tarifario. Intenta nuevamente." });
+    } finally {
+      setPendiente(false);
+    }
+  }
+
   return (
     <CentroShell>
-      <div className="container-aj max-w-5xl py-10 sm:py-16">
-        <section
-          aria-labelledby="cotizador-title"
-          className="rounded-3xl border border-primary/15 bg-primary-soft p-6 sm:p-12"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-            <HeartPulse aria-hidden="true" className="size-5" />
-            Vida y Gastos Médicos Mayores
-          </div>
-          <h1 id="cotizador-title" className="mt-4 text-4xl leading-tight sm:text-6xl">
-            Cotizaciones MetLife
-          </h1>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Genera una cotización en el portal oficial de MetLife o pide a AJ Consultoría que te
-            ayude con tu solicitud.
+      <div className="container-aj max-w-6xl py-10 sm:py-16">
+        <header className="mb-8 max-w-2xl">
+          <p className="mb-3 text-sm font-semibold text-primary">Línea Individual · Vida</p>
+          <h1 className="text-4xl leading-tight sm:text-6xl">Cotizador MetLife</h1>
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+            Calcula la prima de la cobertura básica TempoLife con el tarifario del cotizador 7.6.
           </p>
-        </section>
+        </header>
 
-        <div className="mt-5 grid gap-5 md:grid-cols-2">
-          <section
-            aria-labelledby="agentes-title"
-            className="flex flex-col items-start rounded-2xl border border-border bg-card p-6 sm:p-8"
+        <div className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
+          <form
+            onSubmit={enviar}
+            onChange={() => setRespuesta(undefined)}
+            className="rounded-2xl border border-border bg-card p-5 sm:p-8 print:hidden"
           >
-            <LockKeyhole aria-hidden="true" className="size-6 text-primary" />
-            <h2 id="agentes-title" className="mt-4 text-2xl">
-              Portal para agentes
-            </h2>
-            <p className="mt-2 mb-6 grow leading-relaxed text-muted-foreground">
-              Inicia sesión con tu cuenta de agente de MetLife y entra a Cotizaciones en línea.
-              Desde ahí podrás generar y descargar cotizaciones.
-            </p>
-            <a
-              href={PORTAL_METLIFE}
-              className="btn-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            >
-              Entrar al portal de MetLife
-            </a>
-            <a
-              href={INFO_METLIFE}
-              className="mt-4 text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            >
-              Consultar la guía de acceso
-            </a>
-          </section>
+            <fieldset disabled={pendiente} className="min-w-0">
+              <legend className="font-display text-2xl">Datos de la cotización</legend>
+              <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                <label className="text-sm font-medium sm:col-span-2">
+                  Plan
+                  <select
+                    name="plan"
+                    className={entrada}
+                    value={plan}
+                    onChange={(event) => setPlan(Number(event.target.value) as typeof plan)}
+                  >
+                    {Object.entries(PLANES).map(([id, item]) => (
+                      <option key={id} value={id}>
+                        {item.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium">
+                  Moneda
+                  <select
+                    name="moneda"
+                    className={entrada}
+                    value={moneda}
+                    onChange={(event) => setMoneda(event.target.value as typeof moneda)}
+                  >
+                    <option value="MXN">Pesos mexicanos (MXN)</option>
+                    <option value="USD">Dólares estadounidenses (USD)</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium">
+                  Plazo
+                  <select
+                    name="plazo"
+                    className={entrada}
+                    value={plazoActivo}
+                    onChange={(event) => setPlazo(Number(event.target.value))}
+                  >
+                    {plazos.map((item) => (
+                      <option key={item} value={item}>
+                        {etiquetaPlazo(item)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium">
+                  Edad
+                  <input
+                    name="edad"
+                    type="number"
+                    min={plan === 1 ? 15 : 18}
+                    max={plazoActivo === 65 ? 60 : 70}
+                    step="1"
+                    required
+                    className={entrada}
+                  />
+                </label>
+                <label className="text-sm font-medium">
+                  Sexo
+                  <select name="sexo" className={entrada} defaultValue="" required>
+                    <option value="" disabled>
+                      Selecciona
+                    </option>
+                    <option value="F">Femenino</option>
+                    <option value="M">Masculino</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium">
+                  ¿Fuma?
+                  <select name="fuma" className={entrada} defaultValue="" required>
+                    <option value="" disabled>
+                      Selecciona
+                    </option>
+                    <option value="N">No</option>
+                    <option value="S">Sí</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium">
+                  Suma asegurada ({moneda})
+                  <input
+                    name="suma"
+                    type="number"
+                    min="1"
+                    max="2147483647"
+                    step="1"
+                    required
+                    className={entrada}
+                  />
+                </label>
+                <label className="text-sm font-medium sm:col-span-2">
+                  Forma de pago
+                  <select
+                    name="frecuencia"
+                    className={entrada}
+                    value={frecuencia}
+                    onChange={(event) => setFrecuencia(event.target.value as typeof frecuencia)}
+                  >
+                    {Object.entries(PAGOS).map(([id, item]) => (
+                      <option key={id} value={id}>
+                        {item.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <button
+                type="submit"
+                className="btn-primary mt-6 w-full sm:w-auto"
+                disabled={pendiente}
+              >
+                <Calculator aria-hidden="true" className="size-4" />
+                {pendiente ? "Calculando…" : "Calcular prima"}
+              </button>
+            </fieldset>
+          </form>
 
           <section
-            aria-labelledby="asesoria-title"
-            className="flex flex-col items-start rounded-2xl border border-border bg-card p-6 sm:p-8"
+            aria-labelledby="resumen-metlife"
+            aria-busy={pendiente}
+            className="rounded-2xl border border-primary/15 bg-primary-soft p-5 sm:p-8 print:border-0 print:bg-white"
           >
-            <MessageCircle aria-hidden="true" className="size-6 text-primary" />
-            <h2 id="asesoria-title" className="mt-4 text-2xl">
-              Asesoría de AJ Consultoría
+            <h2 id="resumen-metlife" className="text-2xl">
+              Resultado
             </h2>
-            <p className="mt-2 mb-6 leading-relaxed text-muted-foreground">
-              Si buscas un seguro para ti o tu familia, escríbenos para conversar sobre tus
-              necesidades y preparar tu cotización.
-            </p>
-            <a
-              href={CONTACTO_AJ}
-              className="btn-outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            >
-              Contactar por WhatsApp
-            </a>
+            <div className="mt-3" aria-live="polite">
+              {error && <p className="rounded-lg bg-card p-3 text-foreground">{error}</p>}
+              {!respuesta && (
+                <p className="text-muted-foreground">
+                  {pendiente ? "Consultando tarifas." : "Completa los datos para conocer la prima."}
+                </p>
+              )}
+              {cotizacion && (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {PLANES[plan].nombre} · {etiquetaPlazo(plazoActivo)} · {moneda}
+                  </p>
+                  <p className="mt-4 font-display text-4xl tabular-nums">
+                    {dinero.format(cotizacion.pago)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {cotizacion.pagos === 1 ? "Pago anual" : `${cotizacion.pagos} pagos al año`}
+                  </p>
+                  <dl className="mt-5 space-y-2 border-t border-primary/20 pt-4 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <dt>Cobertura básica</dt>
+                      <dd>{dinero.format(cotizacion.basica)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt>Cargo fijo</dt>
+                      <dd>{dinero.format(cotizacion.cargoFijo)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 font-semibold">
+                      <dt>Prima anual</dt>
+                      <dd>{dinero.format(cotizacion.primaAnual)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt>Recargo por forma de pago</dt>
+                      <dd>{dinero.format(cotizacion.recargo)}</dd>
+                    </div>
+                  </dl>
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    Importe de referencia del tarifario 7.6, sujeto a confirmación de MetLife.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="btn-outline mt-5 print:hidden"
+                  >
+                    <Printer aria-hidden="true" className="size-4" />
+                    Imprimir resultado
+                  </button>
+                </>
+              )}
+            </div>
           </section>
         </div>
       </div>
