@@ -248,7 +248,7 @@ export function CotizadorMet4U() {
             </>
           )}
         </div>
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="mt-4 text-sm text-muted-foreground print:hidden">
           La proyección de fondos de Met4U está pendiente de validación.
         </p>
       </section>

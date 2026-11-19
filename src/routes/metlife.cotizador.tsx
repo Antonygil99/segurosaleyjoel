@@ -64,7 +64,7 @@ function CotizadorMetLife() {
   >("vida");
   const [primordial, setPrimordial] = useState<CotizacionPrimordial>();
   return (
-    <CentroShell>
+    <CentroShell soloContenidoImpreso>
       <div className="container-aj max-w-6xl py-10 sm:py-16 print:py-4">
         <header className="mb-8 max-w-2xl">
           <p className="mb-3 text-sm font-semibold text-primary">Línea Individual</p>
