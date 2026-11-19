@@ -31,6 +31,8 @@ Met4U permite cotizar la prima inicial para 10 años o hasta los 65, con invalid
 node scripts/import-met4u-tariffs.mjs /ruta/a/Met4U.db
 ```
 
+La proyección de Met4U usa los costos mensuales de la versión 7.6 y muestra el cierre de cada año hasta los 65. Incluye el escenario de fondo fijo a 6.5 % y la aportación anual programada, sin retiros.
+
 Para cargar tarifas y valores garantizados, extrae estas bases SQLite del directorio `datos/` del JAR y guárdalas juntas:
 
 - `dbMetaLife.db`
@@ -45,4 +47,4 @@ node scripts/import-metlife-tariffs.mjs /ruta/a/dbMetaLife.db
 
 El importador actualiza los tarifarios de Vida, valores garantizados y tarifas de Salud en una transacción dentro del esquema `metlife_cotizador`. Mantén los archivos SQLite, sus tarifas y la cadena de conexión fuera de Git.
 
-Quedan pendientes MetaLife y su reproyección, EducaLife, FlexiLife, las proyecciones de Met4U, las combinaciones con MetaLife y los informes específicos del software de escritorio.
+Quedan pendientes MetaLife y su reproyección, EducaLife, FlexiLife, los demás escenarios de proyección de Met4U, las combinaciones con MetaLife y los informes específicos del software de escritorio.

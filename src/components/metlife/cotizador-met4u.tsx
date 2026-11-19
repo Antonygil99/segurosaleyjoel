@@ -20,6 +20,12 @@ const calcular = createServerFn({ method: "POST" })
 const entrada =
   "mt-1.5 w-full rounded-lg border border-input bg-card px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-ring";
 const pesos = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+const pesosReporte = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  maximumFractionDigits: 0,
+  roundingMode: "halfEven",
+} as Intl.NumberFormatOptions);
 
 export function CotizadorMet4U() {
   const [resultado, setResultado] = useState<RespuestaMet4U>();
@@ -44,6 +50,7 @@ export function CotizadorMet4U() {
       invalidez: monto("invalidez"),
       adicionales: { CAN: monto("CAN"), DIA: monto("DIA"), GRA: monto("GRA") },
       ahorroAnual: monto("ahorroAnual"),
+      proyeccion: form.get("proyeccion") === "on",
     });
     if (!solicitud.success) {
       setResultado({ error: "Revisa la edad, el plazo y los importes capturados." });
@@ -62,6 +69,7 @@ export function CotizadorMet4U() {
   }
 
   const resumen = resultado && !("error" in resultado) ? resultado : undefined;
+  const proyeccion = resumen?.proyeccion;
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[1.2fr_1fr] print:block">
       <form
@@ -164,6 +172,9 @@ export function CotizadorMet4U() {
               />
             </label>
           </div>
+          <label className="mt-5 flex items-center gap-2 text-sm font-medium">
+            <input name="proyeccion" type="checkbox" /> Incluir proyección de fondo fijo
+          </label>
           <button type="submit" className="btn-primary mt-5">
             <Calculator className="size-4" aria-hidden="true" />{" "}
             {pendiente ? "Calculando…" : "Calcular prima"}
@@ -248,10 +259,65 @@ export function CotizadorMet4U() {
             </>
           )}
         </div>
-        <p className="mt-4 text-sm text-muted-foreground print:hidden">
-          La proyección de fondos de Met4U está pendiente de validación.
-        </p>
       </section>
+      {proyeccion && (
+        <section className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-8 lg:col-span-2 print:mt-6 print:border-0 print:p-0">
+          <h2 className="text-2xl">Proyección de Met4U</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Fondo fijo con rendimiento ilustrativo de 6.5 % anual, sin retiros.
+          </p>
+          <div className="mt-4 overflow-x-auto print:overflow-visible">
+            <table className="w-full border-collapse text-right text-sm tabular-nums print:text-[9px]">
+              <thead>
+                <tr>
+                  {[
+                    "Año",
+                    "Aportación anual",
+                    "Fondo básico",
+                    "Fondo adicional",
+                    "Valor de rescate",
+                    "Suma básica",
+                  ].map((titulo) => (
+                    <th key={titulo} scope="col" className="px-2 py-2">
+                      {titulo}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {proyeccion
+                  .filter((fila) => fila.mes === 12)
+                  .map((fila) => {
+                    const total = proyeccion
+                      .slice((fila.anio - 1) * 12, fila.anio * 12)
+                      .reduce((acumulado, mes) => acumulado + mes.aportacion, 0);
+                    return (
+                      <tr
+                        key={fila.anio}
+                        className="border-t border-border print:break-inside-avoid"
+                      >
+                        <th scope="row" className="px-2 py-2">
+                          {fila.anio}
+                        </th>
+                        {[
+                          total,
+                          fila.fondoBasicoRemanente,
+                          fila.fondoAdicional,
+                          fila.rescateReporte,
+                          fila.sumaBasica,
+                        ].map((valor, indice) => (
+                          <td key={indice} className="px-2 py-2">
+                            {pesosReporte.format(valor)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { obtenerConexionMetLife } from "./metlife-conexion.server";
 import { PAGOS } from "./metlife";
+import { proyectarMet4U, type PerfilProyeccionMet4U } from "./metlife-met4u-proyeccion.server";
 import {
   COBERTURAS_MET4U,
   SUMA_MINIMA_MET4U,
@@ -24,7 +25,11 @@ const SIN_TARIFA = "El tarifario Met4U 7.6 no está disponible para esta cotizac
 const adicionales = ["CAN", "DIA", "GRA"] as const;
 const redondear = (valor: number) => Math.round(valor * 100) / 100;
 
-export function calcularMet4U(solicitud: SolicitudMet4U, datos: TarifasMet4U): RespuestaMet4U {
+function calcularMet4U(
+  solicitud: SolicitudMet4U,
+  datos: TarifasMet4U,
+  perfil?: PerfilProyeccionMet4U,
+): RespuestaMet4U {
   const { plazo, edad, sexo, fuma, suma, frecuencia, ahorroAnual = 0 } = solicitud;
   const tarifa = datos.tarifas.find(
     (fila) =>
@@ -91,11 +96,29 @@ export function calcularMet4U(solicitud: SolicitudMet4U, datos: TarifasMet4U): R
 
   const coberturaAnual = primas.reduce((total, item) => total + item.prima, 0);
   const aporteAnual = coberturaAnual + ahorroAnual;
+  const proyeccion = perfil
+    ? proyectarMet4U(
+        solicitud,
+        {
+          BAS: suma,
+          INV: sumaInvalidez,
+          CAN: solicitud.adicionales.CAN ?? 0,
+          DIA: solicitud.adicionales.DIA ?? 0,
+          GRA: solicitud.adicionales.GRA ?? 0,
+        },
+        tarifa,
+        perfil,
+      )
+    : undefined;
+  if (solicitud.proyeccion && !proyeccion) {
+    return { error: "La proyección de Met4U no está disponible para esta cotización." };
+  }
   return {
     primas,
     coberturaAnual,
     aporteAnual,
     aportePorPago: aporteAnual / PAGOS[frecuencia].pagos,
+    proyeccion,
   };
 }
 
@@ -107,7 +130,17 @@ export async function cotizarMet4U(solicitud: SolicitudMet4U): Promise<Respuesta
       "SELECT datos FROM metlife_cotizador.met4u_tarifarios WHERE version = $1",
       ["7.6"],
     );
-    return rows[0] ? calcularMet4U(solicitud, rows[0].datos) : { error: SIN_TARIFA };
+    if (!rows[0]) return { error: SIN_TARIFA };
+    if (!solicitud.proyeccion) return calcularMet4U(solicitud, rows[0].datos);
+    const { plazo, sexo, fuma } = solicitud;
+    const perfil = await conexion.query<PerfilProyeccionMet4U>(
+      `SELECT datos->'perfiles'->$2::text AS costos, datos->'recargos'->$3::text AS recargos,
+              datos->'cargos' AS cargos
+       FROM metlife_cotizador.met4u_proyecciones WHERE version = $1`,
+      ["7.6", `${plazo}/${sexo}/${fuma}`, String(plazo)],
+    );
+    const tarifa = perfil.rows[0];
+    return calcularMet4U(solicitud, rows[0].datos, tarifa?.costos ? tarifa : undefined);
   } catch (error) {
     const codigo =
       typeof error === "object" && error !== null && "code" in error ? error.code : undefined;

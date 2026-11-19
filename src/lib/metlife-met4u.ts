@@ -26,7 +26,23 @@ export const solicitudMet4U = z.object({
     GRA: importe.optional(),
   }),
   ahorroAnual: importe.optional(),
+  proyeccion: z.boolean().optional(),
 });
+
+export type FilaMet4U = {
+  anio: number;
+  mes: number;
+  edad: number;
+  aportacion: number;
+  fondoBasico: number;
+  fondoBasicoRemanente: number;
+  fondoAdicional: number;
+  rescate: number;
+  rescateReporte: number;
+  costoSeguro: number;
+  sumaBasica: number;
+  sumaInvalidez: number;
+};
 
 export type SolicitudMet4U = z.infer<typeof solicitudMet4U>;
 export type CoberturaMet4U = keyof typeof COBERTURAS_MET4U;
@@ -36,5 +52,6 @@ export type RespuestaMet4U =
       coberturaAnual: number;
       aporteAnual: number;
       aportePorPago: number;
+      proyeccion?: FilaMet4U[];
     }
   | { error: string };

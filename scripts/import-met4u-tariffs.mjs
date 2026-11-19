@@ -26,13 +26,59 @@ export function leerMet4U(ruta) {
     if (reglas.length !== 5 || !tarifas.length) {
       throw new Error("El archivo Met4U no contiene todas las reglas y tarifas.");
     }
-    return { reglas, tarifas };
+    const cargos = sqlite
+      .prepare("SELECT Ano AS anio, CargoRescate AS cargo FROM CargoRescate ORDER BY Ano")
+      .all();
+    const recargos = sqlite
+      .prepare(
+        "SELECT Plazo AS plazo, Ano AS anio, Recargo AS factor FROM RecargoPrimas ORDER BY rowid",
+      )
+      .all();
+    const costosBase = sqlite
+      .prepare(
+        `SELECT Plazo AS plazo, Edad AS edad, Ano AS anio, Sexo AS sexo, Fuma AS fuma,
+              CoiBasica AS BAS, CoiInvalidez AS INV FROM CoiBasInv ORDER BY rowid`,
+      )
+      .all();
+    const otrosCostos = sqlite
+      .prepare(
+        `SELECT Plazo AS plazo, Edad AS edad, Sexo AS sexo, Fuma AS fuma,
+              CoiCancer AS CAN, CoiDiabetes AS DIA, CoiGraves AS GRA
+       FROM CoiOtras ORDER BY rowid`,
+      )
+      .all();
+    const otrosPorEdad = new Map(
+      otrosCostos.map(({ plazo, sexo, fuma, edad, ...costos }) => [
+        `${plazo}/${sexo}/${fuma}/${edad}`,
+        costos,
+      ]),
+    );
+    const perfiles = new Map();
+    for (const { plazo, edad, anio, sexo, fuma, ...costos } of costosBase) {
+      const otros = otrosPorEdad.get(`${plazo}/${sexo}/${fuma}/${edad}`);
+      if (!otros) throw new Error("Faltan costos complementarios de Met4U.");
+      const clave = `${plazo}/${sexo}/${fuma}`;
+      if (!perfiles.has(clave)) perfiles.set(clave, {});
+      perfiles.get(clave)[`${edad}/${anio}`] = { ...costos, ...otros };
+    }
+    const proyeccion = {
+      perfiles: Object.fromEntries(perfiles),
+      recargos: Object.fromEntries(
+        [10, 99].map((plazo) => [
+          plazo,
+          recargos.filter((fila) => fila.plazo === plazo).map(({ factor }) => factor),
+        ]),
+      ),
+      cargos: Object.fromEntries(cargos.map(({ anio, cargo }) => [anio, cargo])),
+    };
+    return { reglas, tarifas, proyeccion };
   } finally {
     sqlite.close();
   }
 }
 
 export async function importarMet4U(conexion, datos) {
+  const { proyeccion, ...primas } = datos;
   await conexion.query("BEGIN");
   try {
     await conexion.query("SELECT pg_advisory_xact_lock(7616801)");
@@ -45,7 +91,17 @@ export async function importarMet4U(conexion, datos) {
     await conexion.query(
       `INSERT INTO metlife_cotizador.met4u_tarifarios (version, datos) VALUES ($1, $2)
        ON CONFLICT (version) DO UPDATE SET datos = excluded.datos`,
-      [VERSION, JSON.stringify(datos)],
+      [VERSION, JSON.stringify(primas)],
+    );
+    await conexion.query(
+      `CREATE TABLE IF NOT EXISTS metlife_cotizador.met4u_proyecciones (
+         version text PRIMARY KEY, datos jsonb NOT NULL
+       )`,
+    );
+    await conexion.query(
+      `INSERT INTO metlife_cotizador.met4u_proyecciones (version, datos) VALUES ($1, $2)
+       ON CONFLICT (version) DO UPDATE SET datos = excluded.datos`,
+      [VERSION, JSON.stringify(proyeccion)],
     );
     await conexion.query("COMMIT");
   } catch (error) {
