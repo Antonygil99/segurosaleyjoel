@@ -25,6 +25,12 @@ La ruta `/metlife/cotizador` utiliza las tablas de la versión 7.6. Incluye Vida
 
 Horizonte incluye el ejemplo fiscal de la cuenta especial de ahorro de Windows 7.6, con el tipo de cambio de la cotización cuando se eligen dólares. Desde Primordial Familiar se puede cotizar MédicaLife con las mismas personas y forma de pago, y consultar el total conjunto, el primer pago y los pagos subsecuentes.
 
+Met4U permite cotizar la prima inicial para 10 años o hasta los 65, con invalidez y coberturas opcionales de cáncer, diabetes y enfermedades graves. Para importar su tarifario, usa el archivo `Met4U.db` del mismo JAR y la conexión `DATA_URL`:
+
+```sh
+node scripts/import-met4u-tariffs.mjs /ruta/a/Met4U.db
+```
+
 Para cargar tarifas y valores garantizados, extrae estas bases SQLite del directorio `datos/` del JAR y guárdalas juntas:
 
 - `dbMetaLife.db`
@@ -39,4 +45,4 @@ node scripts/import-metlife-tariffs.mjs /ruta/a/dbMetaLife.db
 
 El importador actualiza los tarifarios de Vida, valores garantizados y tarifas de Salud en una transacción dentro del esquema `metlife_cotizador`. Mantén los archivos SQLite, sus tarifas y la cadena de conexión fuera de Git.
 
-Quedan pendientes MetaLife y su reproyección, EducaLife, Met4U, FlexiLife, las combinaciones con MetaLife y los informes específicos del software de escritorio.
+Quedan pendientes MetaLife y su reproyección, EducaLife, FlexiLife, las proyecciones de Met4U, las combinaciones con MetaLife y los informes específicos del software de escritorio.
