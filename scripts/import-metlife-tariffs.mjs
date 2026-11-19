@@ -14,8 +14,9 @@ export function leerTarifarios(ruta) {
   try {
     const claves = sqlite
       .prepare(
-        `SELECT idPlan, idMoneda, plazo, fuma, BAS, claveBanda, tarifaSH, VG, EP, EPGF, PASI, IMA, DI, TI, EG, GF
-       FROM ClaveValores WHERE idPlan IN (${PLANES}) AND idMoneda IN (1, 2, 5) AND riesgo = 0`,
+        `SELECT idPlan, idMoneda, plazo, riesgo, fuma, BAS, claveBanda, tarifaSH, VG, EP, EPGF, PASI, IMA, DI, TI, EG, GF
+       FROM ClaveValores WHERE idPlan IN (${PLANES}) AND idMoneda IN (1, 2, 5)
+       AND (riesgo = 0 OR idPlan = 12) ORDER BY riesgo`,
       )
       .all();
     const edades = sqlite.prepare(
@@ -41,7 +42,17 @@ export function leerTarifarios(ruta) {
     );
     const tarifasPorCodigo = new Map();
     const tarifarios = new Map();
-    for (const { idPlan, idMoneda, plazo, fuma, ...codigos } of claves) {
+    const edadesVpl = sqlite.prepare(
+      "SELECT idBeneficio, edadMin, edadMax FROM EdadesVPL WHERE idPlan = 12 AND plazo = ? AND plazoVPL = ?",
+    );
+    const rentas = sqlite.prepare(
+      "SELECT garantia, sexo, fuma, facRenta FROM FacRenta WHERE moneda = ? AND plazo = ?",
+    );
+    const ahorro = sqlite.prepare(
+      "SELECT edad, sexo, fuma, facAhorro FROM FacAhorro WHERE plan = ?",
+    );
+    for (const { idPlan, idMoneda, plazo: plazoTabla, riesgo, fuma, ...codigos } of claves) {
+      const plazo = riesgo || plazoTabla;
       const moneda = MONEDAS[idMoneda];
       const llave = `${idPlan}/${moneda}/${plazo}`;
       if (!tarifarios.has(llave)) {
@@ -80,14 +91,38 @@ export function leerTarifarios(ruta) {
             claves: {},
             primas: [],
             beneficios: { edades: limites, sumas: beneficios, funerario: funerario.all(idMoneda) },
+            ...(idPlan === 12 && {
+              horizonte: { rentas: rentas.all(idMoneda, plazo), ahorro: [], pagoLimitado: {} },
+            }),
           },
         });
       }
 
-      const datos = tarifarios.get(llave).datos;
+      const base = tarifarios.get(llave).datos;
+      let datos = base;
+      if (riesgo) {
+        const limites = Object.fromEntries(
+          edadesVpl
+            .all(plazo, plazoTabla)
+            .map(({ idBeneficio, ...valores }) => [idBeneficio, valores]),
+        );
+        if (!limites.BAS)
+          throw new Error(`Faltan edades para ${llave} con pago de ${plazoTabla} años.`);
+        const { horizonte, ...comun } = base;
+        datos = {
+          ...comun,
+          ...limites.BAS,
+          claves: {},
+          primas: [],
+          beneficios: { ...base.beneficios, suscripcion: limites },
+          horizonte: { rentas: horizonte.rentas, ahorro: [] },
+        };
+        horizonte.pagoLimitado[plazoTabla] = datos;
+      }
+      if (datos.horizonte) datos.horizonte.ahorro = ahorro.all(codigos.BAS);
       if (Object.hasOwn(datos.claves, fuma)) throw new Error(`Clave duplicada para ${llave}.`);
       datos.claves[fuma] = codigos;
-      for (const campo of ["BAS", "EP", "PASI", "IMA", "DI", "TI", "EG"]) {
+      for (const campo of ["BAS", "EP", "PASI", "IMA", "DI", "TI", "EG", "GF"]) {
         const codigo = codigos[campo];
         if (!codigo || codigo === "NA" || datos.primas.some(({ plan }) => plan === codigo))
           continue;
@@ -101,7 +136,7 @@ export function leerTarifarios(ruta) {
     const garantias = new Map();
     const filas = sqlite.prepare(
       `SELECT plan, edad, sexo, fuma, rescate, saldado, anosp, diasp
-       FROM valgar WHERE plan IN (SELECT VG FROM ClaveValores WHERE idPlan IN (${PLANES}) AND riesgo = 0)
+       FROM valgar WHERE plan IN (SELECT VG FROM ClaveValores WHERE idPlan IN (${PLANES}) AND (riesgo = 0 OR idPlan = 12))
        ORDER BY rowid`,
     );
     for (const { plan, edad, sexo, fuma, rescate, saldado, anosp, diasp } of filas.iterate()) {

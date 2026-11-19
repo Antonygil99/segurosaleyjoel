@@ -30,8 +30,14 @@ export interface Tarifario {
   }[];
   beneficios?: {
     edades: Record<string, Edad>;
+    suscripcion?: Record<string, Pick<Edad, "edadMin" | "edadMax">>;
     sumas: Record<string, Suma>;
     funerario: { GF: number; edad: number; sexo: string; fuma: string }[];
+  };
+  horizonte?: {
+    rentas: { garantia: number; sexo: string; fuma: string; facRenta: number }[];
+    ahorro: { edad: number; sexo: string; fuma: string; facAhorro: number }[];
+    pagoLimitado?: Record<number, Tarifario>;
   };
 }
 
@@ -57,6 +63,11 @@ export type CotizacionVida = {
   pagos: number;
   beneficios: PrimaBeneficio[];
   proyeccion?: FilaProyeccion[];
+  horizonte?: {
+    importeLiquidacion: number;
+    ahorroPorPago: number;
+    proteccionPorPago: number;
+  };
 };
 
 export type RespuestaCotizacion = { cotizacion: CotizacionVida } | { error: string };
@@ -121,7 +132,14 @@ function proyectar(
   const renovable = plan === 1 && plazo === 1;
   const creciente = moneda === "MXC";
   const limites = datos.beneficios?.edades ?? {};
-  const plazoPago = renovable ? 71 - edad : plazo >= 50 ? plazo - edad : plazo;
+  const plazoLimitado = solicitud.horizonte?.plazoPago ?? 100;
+  const plazoPago = renovable
+    ? 71 - edad
+    : plan === 12 && plazoLimitado < 100
+      ? plazoLimitado
+      : plazo >= 50
+        ? plazo - edad
+        : plazo;
   const duracion = renovable ? plazoPago : Math.min(factores.length, 100 - edad);
   const fecha = fechaEnMexico();
   const porVida = (extraprimas?.vida || 100) / 100;
@@ -285,7 +303,7 @@ export function calcularPrima(
     if (!monto) continue;
     const esAccidente = cobertura === accidente;
     const grupo = esAccidente ? "ACC" : cobertura;
-    const limite = datos.beneficios?.edades[grupo];
+    const limite = (datos.beneficios?.suscripcion ?? datos.beneficios?.edades)?.[grupo];
     const sumas = datos.beneficios?.sumas[grupo];
     if (
       !limite ||
@@ -307,7 +325,10 @@ export function calcularPrima(
       };
     }
     if (cobertura === "GF") {
-      const prima = primaFuneraria(edad, monto);
+      const prima =
+        plan === 12 && (solicitud.horizonte?.plazoPago ?? 100) < 100
+          ? ((buscarPrima(clave.GF, edad, 0, sexo, fuma) ?? 0) * monto) / 1000
+          : primaFuneraria(edad, monto);
       if (prima <= 0) return { error: NO_DISPONIBLE };
       adicionales.push({
         cobertura,
@@ -328,7 +349,7 @@ export function calcularPrima(
 
   let tasaEP = 0;
   if (beneficios?.EP) {
-    const limite = datos.beneficios?.edades.EP;
+    const limite = (datos.beneficios?.suscripcion ?? datos.beneficios?.edades)?.EP;
     if (!limite || clave.EP === "NA" || edad < limite.edadMin || edad > limite.edadMax) {
       return {
         error: "La exención de primas por invalidez no está disponible para este plazo o edad.",
@@ -359,6 +380,28 @@ export function calcularPrima(
     pagos: frecuencia.pagos,
     beneficios: adicionales,
   };
+  if (plan === 12 && datos.horizonte) {
+    const { moneda } = solicitud;
+    const liquidacion = solicitud.horizonte?.liquidacion ?? "unica";
+    const sumaAlcanzada = moneda === "MXC" ? suma + (plazo - edad - 1) * 0.05 * suma : suma;
+    const garantia = liquidacion === "vitalicia" ? 0 : Number(liquidacion);
+    const renta = datos.horizonte.rentas.find(
+      (fila) => fila.garantia === garantia && fila.sexo === sexo && fila.fuma === fuma,
+    );
+    if (liquidacion !== "unica" && !renta) return { error: NO_DISPONIBLE };
+    const ahorro = datos.horizonte.ahorro.find(
+      (fila) => fila.edad === edad && fila.sexo === sexo && fila.fuma === fuma,
+    );
+    const ahorroPorPago = ((ahorro?.facAhorro ?? 0) * basica) / 100 / frecuencia.pagos;
+    cotizacion.horizonte = {
+      importeLiquidacion:
+        liquidacion === "unica"
+          ? Math.round(sumaAlcanzada)
+          : Math.round(((renta?.facRenta ?? 0) * sumaAlcanzada) / 1000),
+      ahorroPorPago,
+      proteccionPorPago: cotizacion.pago - ahorroPorPago,
+    };
+  }
   if (solicitud.proyeccion) {
     if (!factores || (!factores.length && !(plan === 1 && plazo === 1))) {
       return { error: "No hay valores garantizados disponibles para esta combinación." };

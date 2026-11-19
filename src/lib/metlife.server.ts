@@ -1,5 +1,5 @@
 import { obtenerConexionMetLife } from "./metlife-conexion.server";
-import { plazosDe, type SolicitudMetLife } from "./metlife";
+import { plazosDe, regimenesHorizonte, type SolicitudMetLife } from "./metlife";
 import {
   calcularPrima,
   NO_DISPONIBLE,
@@ -15,6 +15,17 @@ export async function cotizarMetLife(solicitud: SolicitudMetLife): Promise<Respu
   if (!plazosDe(solicitud).includes(solicitud.plazo)) {
     return { error: "Selecciona un plazo disponible para el plan y la moneda." };
   }
+  const pagoLimitado = solicitud.horizonte?.plazoPago ?? 100;
+  const regimen = solicitud.horizonte?.regimen;
+  if (
+    solicitud.horizonte &&
+    (solicitud.plan !== 12 || (pagoLimitado < 100 && solicitud.moneda !== "MXC"))
+  ) {
+    return { error: "El pago limitado de Horizonte está disponible en pesos crecientes." };
+  }
+  if (regimen && !regimenesHorizonte(solicitud.moneda, solicitud.plazo).includes(regimen)) {
+    return { error: "La opción fiscal no está disponible para la moneda y el plazo elegidos." };
+  }
 
   const pool = obtenerConexionMetLife();
   if (!pool) return { error: NO_DISPONIBLE };
@@ -26,7 +37,8 @@ export async function cotizarMetLife(solicitud: SolicitudMetLife): Promise<Respu
        WHERE version = $1 AND plan = $2 AND moneda = $3 AND plazo = $4`,
       ["7.6", solicitud.plan, solicitud.moneda, solicitud.plazo],
     );
-    const datos = rows[0]?.datos;
+    const base = rows[0]?.datos;
+    const datos = pagoLimitado === 100 ? base : base?.horizonte?.pagoLimitado?.[pagoLimitado];
     if (!datos) return { error: NO_DISPONIBLE };
     let factores: FactorGarantizado[] | undefined;
     if (solicitud.proyeccion) {

@@ -21,7 +21,7 @@ https://github.com/Antonygil99/segurosaleyjoel
 
 ## Cotizador MetLife
 
-La ruta `/metlife/cotizador` utiliza las tablas de la versión 7.6. Incluye Vida tradicional (TempoLife, TempoLife Grandes Sumas, TempoLife Preferente, TotaLife, PerfectLife y Horizonte con pago hasta edad alcanzada), MédicaLife, Primordial Familiar y MetPlus. La vista de resultados admite impresión o guardado como PDF desde el navegador.
+La ruta `/metlife/cotizador` utiliza las tablas de la versión 7.6. Incluye Vida tradicional (TempoLife, TempoLife Grandes Sumas, TempoLife Preferente, TotaLife, PerfectLife y Horizonte con pago a 5 y 10 años en pesos crecientes o hasta la edad alcanzada), MédicaLife, Primordial Familiar y MetPlus. La vista de resultados admite impresión o guardado como PDF desde el navegador. En Vida tradicional se pueden combinar planes con un mismo perfil, moneda y forma de pago.
 
 Para cargar tarifas y valores garantizados, extrae estas bases SQLite del directorio `datos/` del JAR y guárdalas juntas:
 
@@ -37,4 +37,4 @@ node scripts/import-metlife-tariffs.mjs /ruta/a/dbMetaLife.db
 
 El importador actualiza los tarifarios de Vida, valores garantizados y tarifas de Salud en una transacción dentro del esquema `metlife_cotizador`. Mantén los archivos SQLite, sus tarifas y la cadena de conexión fuera de Git.
 
-Quedan pendientes MetaLife, EducaLife, Met4U, FlexiLife, las modalidades adicionales de Horizonte, las combinaciones de planes y los informes específicos del software de escritorio.
+Quedan pendientes MetaLife, EducaLife, Met4U, FlexiLife, las combinaciones entre familias de productos y los informes específicos del software de escritorio.

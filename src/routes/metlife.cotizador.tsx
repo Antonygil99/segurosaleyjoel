@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
-import { Calculator } from "lucide-react";
+import { Calculator, Printer } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { CentroShell } from "@/components/centro-shell";
@@ -8,16 +8,24 @@ import { CotizadorSalud } from "@/components/metlife/cotizador-salud";
 import { ResultadoVida } from "@/components/metlife/resultado-vida";
 import {
   COBERTURAS,
+  LIQUIDACION_HORIZONTE,
+  REGIMEN_HORIZONTE,
   MONEDAS,
   PAGOS,
   PLANES,
   etiquetaPlazo,
   monedasDe,
   plazosDe,
+  regimenesHorizonte,
   solicitudSchema,
   type SolicitudMetLife,
 } from "@/lib/metlife";
 import type { RespuestaCotizacion } from "@/lib/metlife.server";
+
+type CotizacionGuardada = {
+  solicitud: SolicitudMetLife;
+  respuesta: Extract<RespuestaCotizacion, { cotizacion: unknown }>;
+};
 
 const calcular = createServerFn({ method: "POST" })
   .inputValidator((entrada: unknown) => solicitudSchema.parse(entrada))
@@ -93,6 +101,10 @@ function CotizadorVida() {
   const [ultimaSolicitud, setUltimaSolicitud] = useState<SolicitudMetLife>();
   const [pendiente, setPendiente] = useState(false);
   const [accidente, setAccidente] = useState("");
+  const [plazoPago, setPlazoPago] = useState<5 | 10 | 100>(100);
+  const [planesGuardados, setPlanesGuardados] = useState<CotizacionGuardada[]>([]);
+  const [errorCombinacion, setErrorCombinacion] = useState("");
+  const primera = planesGuardados[0]?.solicitud;
   const plazos = plazosDe({ plan, moneda });
 
   function cambiarPlan(nuevo: SolicitudMetLife["plan"]) {
@@ -102,6 +114,35 @@ function CotizadorVida() {
     setMoneda(divisa);
     setPlazo(plazosDe({ plan: nuevo, moneda: divisa })[0]);
     setAccidente("");
+    setPlazoPago(100);
+  }
+
+  function guardarPlan() {
+    if (!ultimaSolicitud || !respuesta || !("cotizacion" in respuesta)) return;
+    if (
+      primera &&
+      (primera.moneda !== ultimaSolicitud.moneda ||
+        primera.edad !== ultimaSolicitud.edad ||
+        primera.sexo !== ultimaSolicitud.sexo ||
+        primera.fuma !== ultimaSolicitud.fuma ||
+        primera.frecuencia !== ultimaSolicitud.frecuencia)
+    ) {
+      setErrorCombinacion(
+        "Los planes combinados deben compartir moneda, forma de pago y perfil del asegurado.",
+      );
+      return;
+    }
+    const actual = { solicitud: ultimaSolicitud, respuesta };
+    setErrorCombinacion("");
+    setPlanesGuardados((lista) => {
+      const indice = lista.findIndex(
+        ({ solicitud }) =>
+          solicitud.plan === actual.solicitud.plan && solicitud.plazo === actual.solicitud.plazo,
+      );
+      return indice < 0
+        ? [...lista, actual]
+        : lista.map((item, posicion) => (posicion === indice ? actual : item));
+    });
   }
 
   async function enviar(event: FormEvent<HTMLFormElement>) {
@@ -134,6 +175,10 @@ function CotizadorVida() {
         millar: monto("millar"),
       },
       proyeccion: form.get("proyeccion") === "on",
+      horizonte:
+        plan === 12
+          ? { plazoPago, liquidacion: form.get("liquidacion"), regimen: form.get("regimen") }
+          : undefined,
     });
 
     if (!solicitud.success) {
@@ -194,13 +239,45 @@ function CotizadorVida() {
                   setPlazo(plazosDe({ plan, moneda: divisa })[0]);
                 }}
               >
-                {monedasDe(plan).map((item) => (
-                  <option key={item} value={item}>
-                    {MONEDAS[item].etiqueta}
-                  </option>
-                ))}
+                {(plan === 12 && plazoPago < 100 ? (["MXC"] as const) : monedasDe(plan)).map(
+                  (item) => (
+                    <option key={item} value={item}>
+                      {MONEDAS[item].etiqueta}
+                    </option>
+                  ),
+                )}
               </select>
             </label>
+            {plan === 12 && (
+              <>
+                <label className="text-sm font-medium">
+                  Plazo de pago
+                  <select
+                    className={entrada}
+                    value={plazoPago}
+                    onChange={(event) => {
+                      const pago = Number(event.target.value) as typeof plazoPago;
+                      setPlazoPago(pago);
+                      if (pago < 100) setMoneda("MXC");
+                    }}
+                  >
+                    <option value={100}>Hasta la edad alcanzada</option>
+                    <option value={5}>5 años</option>
+                    <option value={10}>10 años</option>
+                  </select>
+                </label>
+                <label className="text-sm font-medium">
+                  Liquidación
+                  <select className={entrada} name="liquidacion" defaultValue="unica">
+                    {Object.entries(LIQUIDACION_HORIZONTE).map(([valor, etiqueta]) => (
+                      <option key={valor} value={valor}>
+                        {etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
             <label className="text-sm font-medium">
               Plazo
               <select
@@ -216,6 +293,18 @@ function CotizadorVida() {
                 ))}
               </select>
             </label>
+            {plan === 12 && (
+              <label className="text-sm font-medium">
+                Opción fiscal
+                <select className={entrada} key={`${moneda}-${plazo}`} name="regimen">
+                  {regimenesHorizonte(moneda, plazo).map((value) => (
+                    <option key={value} value={value}>
+                      {REGIMEN_HORIZONTE[value]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="text-sm font-medium">
               Edad
               <input
@@ -324,7 +413,79 @@ function CotizadorVida() {
         </fieldset>
       </form>
 
-      <ResultadoVida respuesta={respuesta} solicitud={ultimaSolicitud} pendiente={pendiente} />
+      <div className={primera ? "contents print:hidden" : "contents"}>
+        <ResultadoVida
+          respuesta={respuesta}
+          solicitud={ultimaSolicitud}
+          pendiente={pendiente}
+          imprimir={!primera}
+        />
+      </div>
+      {respuesta && "cotizacion" in respuesta && (
+        <button type="button" className="btn-outline w-fit print:hidden" onClick={guardarPlan}>
+          Agregar a la combinación
+        </button>
+      )}
+      {errorCombinacion && (
+        <p role="alert" className="print:hidden">
+          {errorCombinacion}
+        </p>
+      )}
+      {primera && (
+        <section className="lg:col-span-2">
+          <h2 className="text-2xl">Planes combinados</h2>
+          <ul className="mt-3 space-y-2">
+            {planesGuardados.map(({ solicitud, respuesta }, indice) => (
+              <li
+                className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-2"
+                key={`${solicitud.plan}-${solicitud.plazo}`}
+              >
+                <span>
+                  {PLANES[solicitud.plan].nombre} · {etiquetaPlazo(solicitud.plazo)}
+                </span>
+                <span>
+                  {new Intl.NumberFormat("es-MX", {
+                    style: "currency",
+                    currency: MONEDAS[solicitud.moneda].divisa,
+                  }).format(respuesta.cotizacion.primaAnual)}
+                </span>
+                <button
+                  type="button"
+                  className="text-sm text-primary print:hidden"
+                  onClick={() => {
+                    setPlanesGuardados((lista) => lista.filter((_, pos) => pos !== indice));
+                    setErrorCombinacion("");
+                  }}
+                >
+                  Quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="my-3 font-semibold">
+            Prima anual combinada{" "}
+            {new Intl.NumberFormat("es-MX", {
+              style: "currency",
+              currency: MONEDAS[primera.moneda].divisa,
+            }).format(
+              planesGuardados.reduce(
+                (total, { respuesta }) => total + respuesta.cotizacion.primaAnual,
+                0,
+              ),
+            )}
+          </p>
+          <button type="button" className="btn-outline print:hidden" onClick={() => window.print()}>
+            <Printer aria-hidden="true" className="size-4" /> Imprimir combinación
+          </button>
+          <div className="hidden print:block">
+            {planesGuardados.map(({ solicitud, respuesta }) => (
+              <div key={`${solicitud.plan}-${solicitud.plazo}`} className="print:break-before-page">
+                <ResultadoVida solicitud={solicitud} respuesta={respuesta} pendiente={false} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

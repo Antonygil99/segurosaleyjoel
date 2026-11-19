@@ -34,6 +34,27 @@ export const COBERTURAS = {
 export type CoberturaVida = keyof typeof COBERTURAS;
 export type Accidente = "IMA" | "DI" | "TI";
 
+export const LIQUIDACION_HORIZONTE = {
+  unica: "Pago en una sola exhibición",
+  vitalicia: "Renta mensual vitalicia",
+  10: "Renta mensual con 10 años de garantía",
+  15: "Renta mensual con 15 años de garantía",
+  20: "Renta mensual con 20 años de garantía",
+  30: "Renta mensual con 30 años de garantía",
+} as const;
+
+export const REGIMEN_HORIZONTE = {
+  noDeduce: "No deducible",
+  ahorro: "Cuenta especial de ahorro",
+  ppr: "Plan Personal de Retiro (PPR)",
+} as const;
+
+export function regimenesHorizonte(moneda: keyof typeof MONEDAS, plazo: number) {
+  const disponibles: (keyof typeof REGIMEN_HORIZONTE)[] = ["noDeduce"];
+  if (plazo !== 50) disponibles.push("ahorro");
+  if (plazo === 65 && moneda === "MXC") disponibles.push("ppr");
+  return disponibles;
+}
 export const PAGOS = {
   anual: { etiqueta: "Anual", id: 1, pagos: 1 },
   semestral: { etiqueta: "Semestral", id: 2, pagos: 2 },
@@ -82,6 +103,13 @@ export const solicitudSchema = z.object({
     })
     .optional(),
   proyeccion: z.boolean().optional(),
+  horizonte: z
+    .object({
+      plazoPago: z.union([z.literal(5), z.literal(10), z.literal(100)]),
+      liquidacion: z.enum(["unica", "vitalicia", "10", "15", "20", "30"]),
+      regimen: z.enum(["noDeduce", "ahorro", "ppr"]).optional(),
+    })
+    .optional(),
 });
 
 export type SolicitudMetLife = z.infer<typeof solicitudSchema>;

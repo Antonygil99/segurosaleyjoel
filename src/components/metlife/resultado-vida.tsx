@@ -1,16 +1,29 @@
 import { Printer } from "lucide-react";
-import { COBERTURAS, MONEDAS, PLANES, etiquetaPlazo, type SolicitudMetLife } from "@/lib/metlife";
+import { useId } from "react";
+import {
+  COBERTURAS,
+  LIQUIDACION_HORIZONTE,
+  MONEDAS,
+  PLANES,
+  REGIMEN_HORIZONTE,
+  etiquetaPlazo,
+  type SolicitudMetLife,
+} from "@/lib/metlife";
 import type { RespuestaCotizacion } from "@/lib/metlife-vida.server";
 
 export function ResultadoVida({
   respuesta,
   solicitud,
   pendiente,
+  imprimir = true,
 }: {
   respuesta?: RespuestaCotizacion;
   solicitud?: SolicitudMetLife;
   pendiente: boolean;
+  imprimir?: boolean;
 }) {
+  const resumenId = useId();
+  const proyeccionId = useId();
   const cotizacion = respuesta && "cotizacion" in respuesta ? respuesta.cotizacion : undefined;
   const error = respuesta && "error" in respuesta ? respuesta.error : undefined;
   const dinero = new Intl.NumberFormat("es-MX", {
@@ -21,11 +34,11 @@ export function ResultadoVida({
   return (
     <>
       <section
-        aria-labelledby="resumen-metlife"
+        aria-labelledby={resumenId}
         aria-busy={pendiente}
         className="rounded-2xl border border-primary/15 bg-primary-soft p-5 sm:p-8 print:border-0 print:bg-white print:p-0"
       >
-        <h2 id="resumen-metlife" className="text-2xl">
+        <h2 id={resumenId} className="text-2xl">
           Resultado
         </h2>
         <div className="mt-3" aria-live="polite">
@@ -59,6 +72,37 @@ export function ResultadoVida({
                   ]),
                   ["Prima anual", dinero.format(cotizacion.primaAnual)],
                   ["Recargo por forma de pago", dinero.format(cotizacion.recargo)],
+                  ...(cotizacion.horizonte
+                    ? [
+                        [
+                          "Plazo de pago",
+                          !solicitud.horizonte || solicitud.horizonte.plazoPago === 100
+                            ? "Hasta la edad alcanzada"
+                            : etiquetaPlazo(solicitud.horizonte.plazoPago),
+                        ],
+                        [
+                          "Opción fiscal",
+                          REGIMEN_HORIZONTE[solicitud.horizonte?.regimen ?? "noDeduce"],
+                        ],
+                        ...(solicitud.horizonte?.regimen &&
+                        solicitud.horizonte.regimen !== "noDeduce"
+                          ? [
+                              [
+                                "Ahorro por pago",
+                                dinero.format(cotizacion.horizonte.ahorroPorPago),
+                              ],
+                              [
+                                "Protección por pago",
+                                dinero.format(cotizacion.horizonte.proteccionPorPago),
+                              ],
+                            ]
+                          : []),
+                        [
+                          LIQUIDACION_HORIZONTE[solicitud.horizonte?.liquidacion ?? "unica"],
+                          dinero.format(cotizacion.horizonte.importeLiquidacion),
+                        ],
+                      ]
+                    : []),
                 ].map(([etiqueta, valor]) => (
                   <div key={etiqueta} className="flex justify-between gap-3">
                     <dt>{etiqueta}</dt>
@@ -69,23 +113,25 @@ export function ResultadoVida({
               <p className="mt-4 text-sm text-muted-foreground">
                 Importes de referencia del tarifario 7.6, sujetos a confirmación de MetLife.
               </p>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="btn-outline mt-5 print:hidden"
-              >
-                <Printer aria-hidden="true" className="size-4" /> Imprimir o guardar PDF
-              </button>
+              {imprimir && (
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="btn-outline mt-5 print:hidden"
+                >
+                  <Printer aria-hidden="true" className="size-4" /> Imprimir o guardar PDF
+                </button>
+              )}
             </>
           )}
         </div>
       </section>
       {cotizacion?.proyeccion && (
         <section
-          aria-labelledby="proyeccion-metlife"
+          aria-labelledby={proyeccionId}
           className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-8 lg:col-span-2 print:mt-6 print:border-0 print:p-0"
         >
-          <h2 id="proyeccion-metlife" className="text-2xl">
+          <h2 id={proyeccionId} className="text-2xl">
             Proyección anual
           </h2>
           <div className="mt-4 overflow-x-auto print:overflow-visible">
