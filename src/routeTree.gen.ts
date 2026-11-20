@@ -17,6 +17,7 @@ import { Route as AleTeExplicaIndexRouteImport } from './routes/ale-te-explica.i
 import { Route as AleTeExplicaMedicaVitalRouteImport } from './routes/ale-te-explica.medica-vital'
 import { Route as CentroAjIndexRouteImport } from './routes/centro-aj.index'
 import { Route as CentroAjGlosarioRouteImport } from './routes/centro-aj.glosario'
+import { Route as MetlifeCotizadorRouteImport } from './routes/metlife.cotizador'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as CentroAjGastosMedicosIndexRouteImport } from './routes/centro-aj.gastos-medicos.index'
 import { Route as CentroAjGastosMedicosSlugRouteImport } from './routes/centro-aj.gastos-medicos.$slug'
@@ -63,6 +64,11 @@ const CentroAjGlosarioRoute = CentroAjGlosarioRouteImport.update({
   path: '/centro-aj/glosario',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MetlifeCotizadorRoute = MetlifeCotizadorRouteImport.update({
+  id: '/metlife/cotizador',
+  path: '/metlife/cotizador',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ale-te-explica/medica-vital': typeof AleTeExplicaMedicaVitalRoute
   '/centro-aj/glosario': typeof CentroAjGlosarioRoute
+  '/metlife/cotizador': typeof MetlifeCotizadorRoute
   '/ale-te-explica/': typeof AleTeExplicaIndexRoute
   '/centro-aj/': typeof CentroAjIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ale-te-explica/medica-vital': typeof AleTeExplicaMedicaVitalRoute
   '/centro-aj/glosario': typeof CentroAjGlosarioRoute
+  '/metlife/cotizador': typeof MetlifeCotizadorRoute
   '/ale-te-explica': typeof AleTeExplicaIndexRoute
   '/centro-aj': typeof CentroAjIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ale-te-explica/medica-vital': typeof AleTeExplicaMedicaVitalRoute
   '/centro-aj/glosario': typeof CentroAjGlosarioRoute
+  '/metlife/cotizador': typeof MetlifeCotizadorRoute
   '/ale-te-explica/': typeof AleTeExplicaIndexRoute
   '/centro-aj/': typeof CentroAjIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/ale-te-explica/medica-vital'
     | '/centro-aj/glosario'
+    | '/metlife/cotizador'
     | '/ale-te-explica/'
     | '/centro-aj/'
     | '/.mcp/invoke-tool/$tool'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/ale-te-explica/medica-vital'
     | '/centro-aj/glosario'
+    | '/metlife/cotizador'
     | '/ale-te-explica'
     | '/centro-aj'
     | '/.mcp/invoke-tool/$tool'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/ale-te-explica/medica-vital'
     | '/centro-aj/glosario'
+    | '/metlife/cotizador'
     | '/ale-te-explica/'
     | '/centro-aj/'
     | '/.mcp/invoke-tool/$tool'
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AleTeExplicaMedicaVitalRoute: typeof AleTeExplicaMedicaVitalRoute
   CentroAjGlosarioRoute: typeof CentroAjGlosarioRoute
+  MetlifeCotizadorRoute: typeof MetlifeCotizadorRoute
   AleTeExplicaIndexRoute: typeof AleTeExplicaIndexRoute
   CentroAjIndexRoute: typeof CentroAjIndexRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -236,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CentroAjGlosarioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/metlife/cotizador': {
+      id: '/metlife/cotizador'
+      path: '/metlife/cotizador'
+      fullPath: '/metlife/cotizador'
+      preLoaderRoute: typeof MetlifeCotizadorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -268,6 +288,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   AleTeExplicaMedicaVitalRoute: AleTeExplicaMedicaVitalRoute,
   CentroAjGlosarioRoute: CentroAjGlosarioRoute,
+  MetlifeCotizadorRoute: MetlifeCotizadorRoute,
   AleTeExplicaIndexRoute: AleTeExplicaIndexRoute,
   CentroAjIndexRoute: CentroAjIndexRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
