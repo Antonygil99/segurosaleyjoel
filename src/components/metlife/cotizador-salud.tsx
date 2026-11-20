@@ -41,11 +41,13 @@ export function CotizadorSalud({
   producto,
   primordialCombinado,
   combinarConMedica,
+  combinarConMeta,
   cancelarCombinacion,
 }: {
   producto: SolicitudSalud["producto"] | "MedicaLife";
   primordialCombinado?: CotizacionPrimordial;
   combinarConMedica: (cotizacion: CotizacionPrimordial) => void;
+  combinarConMeta: (cotizacion: CotizacionPrimordial) => void;
   cancelarCombinacion: () => void;
 }) {
   const [asegurados, setAsegurados] = useState([0]);
@@ -360,6 +362,23 @@ export function CotizadorSalud({
                       Combinar con MédicaLife
                     </button>
                   )}
+                  {solicitudPrimordial && (
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      disabled={solicitudPrimordial.frecuencia.endsWith(" TC")}
+                      onClick={() =>
+                        combinarConMeta({ solicitud: solicitudPrimordial, resultado: resumen })
+                      }
+                    >
+                      Combinar con MetaLife
+                    </button>
+                  )}
+                  {solicitudPrimordial?.frecuencia.endsWith(" TC") && (
+                    <p className="w-full text-sm">
+                      Para combinar con MetaLife, elige una forma de pago sin tarjeta.
+                    </p>
+                  )}
                 </div>
               )}
             </>
@@ -432,7 +451,7 @@ function ResultadoCombinado({
   );
 }
 
-function CoberturasSalud({
+export function CoberturasSalud({
   titulo,
   coberturas,
   primordial,

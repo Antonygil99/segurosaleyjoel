@@ -78,7 +78,91 @@ export function leerFlexiLife(ruta) {
   }
 }
 
-export async function importarFlexiLife(conexion, datos) {
+export function leerFlexiLifeSuenos(ruta) {
+  const db = new DatabaseSync(ruta, { readOnly: true });
+  try {
+    const leer = (sql) => db.prepare(sql).all();
+    const claves = leer(
+      "SELECT plazo, riesgo, BAS, EP, PASI, EG, tarifaSH FROM ClaveValores WHERE idPlan = 32 AND idMoneda = 1",
+    );
+    const edades = leer(
+      "SELECT plazo, idBeneficio, edadMin, edadMax, edadCan FROM Edades WHERE idPlan = 32",
+    );
+    const [{ sumaMin, recFijo }] = leer(
+      "SELECT sumaMin, recFijo FROM SumaMinBas WHERE idPlan = 32 AND idMoneda = 1",
+    );
+    const tarifas = leer(`SELECT DISTINCT p.plan, edad, banda, sexo, p.fuma, prima FROM Primas AS p
+      WHERE p.plan = 'NGF01F' OR p.plan IN (
+        SELECT BAS FROM ClaveValores WHERE idPlan = 32 UNION
+        SELECT EP FROM ClaveValores WHERE idPlan = 32 UNION
+        SELECT PASI FROM ClaveValores WHERE idPlan = 32 UNION
+        SELECT EG FROM ClaveValores WHERE idPlan = 32
+      )`);
+    const admin = leer(`SELECT plan, edad, banda, sexo, fuma, ano, admin, benef FROM CostoAdmFlexi
+      WHERE plan = 'NUVA00' OR plan IN (SELECT BAS FROM ClaveValores WHERE idPlan = 32)`);
+    const qx = leer(`SELECT benef, riesgo, edad, coiMS AS MS, coiMN AS MN, coiFS AS FS, coiFN AS FN
+      FROM CoiFlexi WHERE idPlan = 32 ORDER BY rowid`);
+    const rescate = leer("SELECT costoRescate FROM CostoRescateFlexi ORDER BY rowid");
+    const recargos = leer(
+      "SELECT idFormaPago, tasaRecargo FROM RecargoFormaPago WHERE idPlan = 32 AND idMoneda = 1",
+    );
+    const fondos = leer("SELECT * FROM TasasFlexi WHERE cuenta IN ('Ahorro', 'PPR', 'CPEA')");
+    const limites = leer(`SELECT idBeneficio, sumaMin, sumaMax FROM SumaBeneficios
+      WHERE idMoneda = 1 AND idBeneficio IN ('ACC', 'EG', 'GF', 'PASI')`);
+    if (
+      claves.length !== 6 ||
+      edades.length < 20 ||
+      tarifas.length < 3000 ||
+      admin.length < 6000 ||
+      qx.length !== 604 ||
+      rescate.length !== 11 ||
+      fondos.length !== 3 ||
+      recargos.length !== 4 ||
+      limites.length !== 4
+    ) {
+      throw new Error("El archivo no contiene el tarifario completo de FlexiLife Sueños.");
+    }
+    return {
+      sumaMin,
+      recFijo,
+      minimoPreferente: 2500000,
+      maximoPPR: 88.36 * 365 * 5,
+      maximoCPEA: 152000,
+      tipoCambioDolar: 20,
+      claves: Object.fromEntries(
+        claves.map(({ plazo, riesgo, ...datos }) => [`${plazo}/${riesgo}`, datos]),
+      ),
+      edades: Object.fromEntries(
+        edades.map(({ plazo, idBeneficio, ...datos }) => [`${plazo}/${idBeneficio}`, datos]),
+      ),
+      tasas: Object.fromEntries(fondos.map(({ cuenta, ...tasas }) => [cuenta, tasas])),
+      tarifas: Object.fromEntries(
+        tarifas.map(({ plan, edad, banda, sexo, fuma, prima }) => [
+          `${plan}/${edad}/${banda}/${sexo}${fuma}`,
+          prima,
+        ]),
+      ),
+      admin: Object.fromEntries(
+        admin.map(({ plan, edad, banda, sexo, fuma, ano, admin, benef }) => [
+          `${plan}/${edad}/${banda}/${sexo}${fuma}/${ano}/${benef}`,
+          admin,
+        ]),
+      ),
+      qx: Object.fromEntries(
+        qx.map(({ benef, riesgo, edad, ...datos }) => [`${benef}/${riesgo}/${edad}`, datos]),
+      ),
+      rescate: rescate.map(({ costoRescate }) => costoRescate),
+      recargos: Object.fromEntries(
+        recargos.map(({ idFormaPago, tasaRecargo }) => [idFormaPago, tasaRecargo]),
+      ),
+      limites: Object.fromEntries(limites.map(({ idBeneficio, ...datos }) => [idBeneficio, datos])),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+export async function importarFlexiLife(conexion, datos, suenos) {
   await conexion.query("BEGIN");
   try {
     await conexion.query("SELECT pg_advisory_xact_lock(7616801)");
@@ -86,11 +170,17 @@ export async function importarFlexiLife(conexion, datos) {
     await conexion.query(`CREATE TABLE IF NOT EXISTS metlife_cotizador.flexi_tarifarios (
       version text NOT NULL, plan integer NOT NULL, datos jsonb NOT NULL, PRIMARY KEY (version, plan)
     )`);
-    await conexion.query(
-      `INSERT INTO metlife_cotizador.flexi_tarifarios (version,plan,datos) VALUES ($1,$2,$3)
-      ON CONFLICT (version,plan) DO UPDATE SET datos=excluded.datos`,
-      ["7.6", 31, JSON.stringify(datos)],
-    );
+    for (const [plan, tarifario] of [
+      [31, datos],
+      [32, suenos],
+    ]) {
+      if (!tarifario) continue;
+      await conexion.query(
+        `INSERT INTO metlife_cotizador.flexi_tarifarios (version,plan,datos) VALUES ($1,$2,$3)
+        ON CONFLICT (version,plan) DO UPDATE SET datos=excluded.datos`,
+        ["7.6", plan, JSON.stringify(tarifario)],
+      );
+    }
     await conexion.query("COMMIT");
   } catch (error) {
     await conexion.query("ROLLBACK");
@@ -104,11 +194,12 @@ async function main() {
   if (!ruta || !connectionString)
     throw new Error("Configura DATA_URL y proporciona dbMetaLife.db.");
   const datos = leerFlexiLife(resolve(ruta));
+  const suenos = leerFlexiLifeSuenos(resolve(ruta));
   const conexion = new pg.Client({ connectionString, connectionTimeoutMillis: 10000 });
   try {
     await conexion.connect();
-    await importarFlexiLife(conexion, datos);
-    console.log("FlexiLife Inversión 7.6: plazos de 10 y 20 años importados.");
+    await importarFlexiLife(conexion, datos, suenos);
+    console.log("Tarifarios de FlexiLife Inversión y Sueños 7.6 importados.");
   } finally {
     await conexion.end();
   }
@@ -116,7 +207,7 @@ async function main() {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch((error) => {
-    console.error("No se pudo importar FlexiLife Inversión.", error?.code ?? "");
+    console.error("No se pudo importar FlexiLife.", error?.code ?? "");
     process.exitCode = 1;
   });
 }

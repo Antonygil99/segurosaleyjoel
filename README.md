@@ -39,10 +39,16 @@ EducaLife calcula primas en pesos y dólares, con titular, menor, cónyuge opcio
 node scripts/import-educalife-tariffs.mjs /ruta/a/dbMetaLife.db
 ```
 
-FlexiLife Inversión calcula la prima en MXN, el rescate y el fondo de ahorro para plazos de 10 y 20 años. Admite cuentas en pesos o dólares y aportaciones iniciales, mensuales, trimestrales y anuales. Para cargar sus tablas mediante `DATA_URL`, ejecuta:
+FlexiLife Inversión calcula la prima en MXN, el rescate y el fondo de ahorro para plazos de 10 y 20 años. FlexiLife Sueños añade el plazo hasta los 65 años, riesgo normal o preferente, coberturas adicionales y cuentas de ahorro, PPR y CPEA. Las cuentas admiten aportaciones iniciales, mensuales, trimestrales y anuales en pesos o dólares. Para importar ambos tarifarios mediante `DATA_URL`, ejecuta:
 
 ```sh
 node scripts/import-flexilife-tariffs.mjs /ruta/a/dbMetaLife.db
+```
+
+MetaLife Actual y MetaLife C permiten cotizar por suma asegurada, prima periódica o meta de ahorro. La proyección muestra primas, retiros, rescate y protección de cada año. Para reproyectar se capturan las fechas de vigencia y cambio, la suma anterior y los saldos al cambio. Primordial + MetaLife reutiliza el titular y la frecuencia de Primordial para preparar el resumen combinado.
+
+```sh
+node scripts/import-metalife-tariffs.mjs /ruta/a/dbMetaLife.db
 ```
 
 Para cargar tarifas y valores garantizados, extrae estas bases SQLite del directorio `datos/` del JAR y guárdalas juntas:
@@ -59,4 +65,4 @@ node scripts/import-metlife-tariffs.mjs /ruta/a/dbMetaLife.db
 
 El importador actualiza los tarifarios de Vida, valores garantizados y tarifas de Salud en una transacción dentro del esquema `metlife_cotizador`. Mantén los archivos SQLite, sus tarifas y la cadena de conexión fuera de Git.
 
-Quedan pendientes MetaLife y su reproyección, FlexiLife Sueños, aportaciones extraordinarias y opciones fiscales de Met4U, valores saldados y prorrogados de EducaLife, las combinaciones con MetaLife y los informes completos del escritorio.
+Quedan pendientes la prima única y las opciones fiscales y de acompañamiento de MetaLife, las aportaciones extraordinarias y cuentas fiscales de Met4U, los valores saldados y prorrogados de EducaLife y las secciones de los informes del escritorio que todavía no están en las vistas imprimibles.

@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { CentroShell } from "@/components/centro-shell";
 import { CotizadorEduca } from "@/components/metlife/cotizador-educa";
 import { CotizadorFlexi } from "@/components/metlife/cotizador-flexi";
+import { CotizadorMeta } from "@/components/metlife/cotizador-meta";
 import { CotizadorMet4U } from "@/components/metlife/cotizador-met4u";
 import { CotizadorSalud, type CotizacionPrimordial } from "@/components/metlife/cotizador-salud";
 import { ResultadoVida } from "@/components/metlife/resultado-vida";
@@ -62,7 +63,15 @@ function Monto({ etiqueta, name }: { etiqueta: string; name: string }) {
 
 function CotizadorMetLife() {
   const [producto, setProducto] = useState<
-    "vida" | "Primordial" | "MetPlus" | "MedicaLife" | "Met4U" | "EducaLife" | "FlexiLife"
+    | "vida"
+    | "Primordial"
+    | "MetPlus"
+    | "MedicaLife"
+    | "Met4U"
+    | "EducaLife"
+    | "FlexiLife"
+    | "FlexiLifeSuenos"
+    | "MetaLife"
   >("vida");
   const [primordial, setPrimordial] = useState<CotizacionPrimordial>();
   return (
@@ -92,6 +101,8 @@ function CotizadorMetLife() {
             <option value="Met4U">Met4U</option>
             <option value="EducaLife">EducaLife</option>
             <option value="FlexiLife">FlexiLife Inversión</option>
+            <option value="FlexiLifeSuenos">FlexiLife Sueños</option>
+            <option value="MetaLife">MetaLife</option>
           </select>
         </label>
         {producto === "vida" ? (
@@ -101,7 +112,14 @@ function CotizadorMetLife() {
         ) : producto === "EducaLife" ? (
           <CotizadorEduca />
         ) : producto === "FlexiLife" ? (
-          <CotizadorFlexi />
+          <CotizadorFlexi key={producto} />
+        ) : producto === "FlexiLifeSuenos" ? (
+          <CotizadorFlexi key={producto} suenos />
+        ) : producto === "MetaLife" ? (
+          <CotizadorMeta
+            primordial={primordial}
+            cancelarCombinacion={() => setPrimordial(undefined)}
+          />
         ) : (
           <CotizadorSalud
             key={producto}
@@ -110,6 +128,10 @@ function CotizadorMetLife() {
             combinarConMedica={(cotizacion) => {
               setPrimordial(cotizacion);
               setProducto("MedicaLife");
+            }}
+            combinarConMeta={(cotizacion) => {
+              setPrimordial(cotizacion);
+              setProducto("MetaLife");
             }}
             cancelarCombinacion={() => setPrimordial(undefined)}
           />
