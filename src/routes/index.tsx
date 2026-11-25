@@ -636,7 +636,7 @@ function Landing() {
                 className="card-soft"
                 style={{ backgroundColor: "color-mix(in oklab, var(--primary-soft) 45%, var(--card))" }}
               >
-                <p className="font-display text-2xl">Joel Rodríguez</p>
+                <p className="font-display text-2xl">Joel David Rodriguez Dzib</p>
                 <p className="mt-1 text-sm text-muted-foreground">Auto · Empresarial · Patrimonio</p>
                 <div className="mt-5 space-y-2 text-sm">
                   <a href="https://wa.me/529999690538" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-primary-soft/60 transition-colors">
