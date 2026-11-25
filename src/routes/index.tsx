@@ -441,14 +441,14 @@ function Landing() {
                 <div className="grid gap-6 sm:grid-cols-[160px_1fr] sm:items-start">
                   <img
                     src={joelImg}
-                    alt="Joel Rodríguez, experto en Seguro de Auto"
+                    alt="Joel David Rodriguez Dzib, experto en Seguro de Auto"
                     width={912}
                     height={1104}
                     loading="lazy"
                     className="mx-auto h-40 w-40 rounded-2xl object-cover sm:h-full sm:w-full"
                   />
                   <div>
-                    <h3 className="text-2xl">Joel Rodríguez</h3>
+                    <h3 className="text-2xl">Joel David Rodriguez Dzib</h3>
                     <p className="mt-1 text-sm font-medium text-primary">Experto en Seguro de Auto</p>
                     <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                       Acompaña a personas, familias y negocios a proteger su movilidad,
